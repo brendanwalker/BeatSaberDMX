@@ -10,6 +10,7 @@ using IPA.Config;
 using IPA.Config.Stores;
 using UnityEngine;
 using IPALogger = IPA.Logging.Logger;
+using MikanXR.SDK.Unity;
 
 namespace BeatSaberDMX
 {
@@ -29,6 +30,7 @@ namespace BeatSaberDMX
         internal static Plugin Instance { get; private set; }
         internal static IPALogger Log { get; private set; }
         internal static BeatSaberDMXController PluginController { get { return BeatSaberDMXController.Instance; } }
+        internal static MikanClient MikanClientInstance { get { return MikanClient.Instance; } }
 
         internal static Harmony HarmonyInstance { get; private set; }
 
@@ -63,7 +65,9 @@ namespace BeatSaberDMX
         [OnEnable]
         public void OnEnable()
         {
-            new GameObject("BeatSaberDMXController").AddComponent<BeatSaberDMXController>();
+            GameObject gameObject = new GameObject("BeatSaberDMXPlugin");
+            gameObject.AddComponent<BeatSaberDMXController>();
+            gameObject.AddComponent<MikanClient>();
             ApplyHarmonyPatches();
         }
 
@@ -77,6 +81,8 @@ namespace BeatSaberDMX
         {
             if (PluginController != null)
                 GameObject.Destroy(PluginController);
+            if (MikanClientInstance != null)
+                GameObject.Destroy(MikanClientInstance);
             RemoveHarmonyPatches();
         }
 
