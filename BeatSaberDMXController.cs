@@ -32,8 +32,8 @@ namespace BeatSaberDMX
 
             //if (loadedScene.name == MenuSceneName)
             //{
-            //    //Plugin.Log?.Warn("[Scene Game Objects]");
-            //    //PrintObjectTreeInScene(loadedScene);
+            //    Plugin.Log?.Warn("[Scene Game Objects]");
+            //    PrintObjectTreeInScene(loadedScene);
 
             //    Plugin.Log?.Info("Binding Devices...");
             //    if (BindMenuSceneComponents(loadedScene))
@@ -44,8 +44,8 @@ namespace BeatSaberDMX
             //}
             if (loadedScene.name == GameSceneName)
             {
-                //Plugin.Log?.Warn("[Scene Game Objects]");
-                //PrintObjectTreeInScene(loadedScene);
+                Plugin.Log?.Warn("[Scene Game Objects]");
+                PluginUtils.PrintObjectTreeInScene(loadedScene);
 
                 Plugin.Log?.Info("Binding Devices...");
                 if (BindGameSceneComponents(loadedScene))
@@ -72,7 +72,7 @@ namespace BeatSaberDMX
 
         bool BindGameSceneComponents(Scene loadedScene)
         {
-            GameObject localPlayerGameCore = FindGameObjectRecursiveInScene(loadedScene, "LocalPlayerGameCore");
+            GameObject localPlayerGameCore = PluginUtils.FindGameObjectRecursiveInScene(loadedScene, "LocalPlayerGameCore");
             //PrintComponents(localPlayerGameCore);
             if (localPlayerGameCore == null)
             {
@@ -105,7 +105,7 @@ namespace BeatSaberDMX
 
         bool BindMenuSceneComponents(Scene loadedScene)
         {
-            GameObject menuCore = FindGameObjectRecursiveInScene(loadedScene, "MenuCore");
+            GameObject menuCore = PluginUtils.FindGameObjectRecursiveInScene(loadedScene, "MenuCore");
             //PrintComponents(menuCore);
             if (menuCore == null)
             {
@@ -305,94 +305,6 @@ namespace BeatSaberDMX
             if (Instance == this)
                 Instance = null; // This MonoBehaviour is being destroyed, so set the static instance property to null.
 
-        }
-        #endregion
-
-        #region DebugHelpers
-        private GameObject FindGameObjectRecursiveInScene(Scene loadedScene, string objectNameToFind)
-        {
-            var rootGameObjects = loadedScene.GetRootGameObjects();
-
-            foreach (var gameObject in rootGameObjects)
-            {
-                GameObject foundGameObject = FindGameObjectRecursive(gameObject, objectNameToFind);
-
-                if (foundGameObject != null)
-                {
-                    return foundGameObject;
-                }
-            }
-
-            return null;
-        }
-
-        private GameObject FindGameObjectRecursive(GameObject gameObject, string objectNameToFind)
-        {
-            if (gameObject == null)
-                return null;
-
-            if (gameObject.name == objectNameToFind)
-            {
-                return gameObject;
-            }
-
-            for (int childIndex = 0; childIndex < gameObject.transform.childCount; ++childIndex)
-            {
-                var childTransform = gameObject.transform.GetChild(childIndex);
-
-                if (childTransform != null)
-                {
-                    GameObject foundGameObject =
-                        FindGameObjectRecursive(childTransform.gameObject, objectNameToFind);
-
-                    if (foundGameObject != null)
-                        return foundGameObject;
-                }
-            }
-
-            return null;
-        }
-
-        private void PrintObjectTreeInScene(Scene loadedScene)
-        {
-            var rootGameObjects = loadedScene.GetRootGameObjects();
-
-            foreach (var gameObject in rootGameObjects)
-            {
-                PrintObjectTree(gameObject, "  ");
-            }
-        }
-
-        private void PrintObjectTree(GameObject gameObject, string prefix)
-        {
-            if (gameObject == null)
-                return;
-
-            Plugin.Log?.Warn($"{prefix}{gameObject.name}");
-
-            for (int childIndex = 0; childIndex < gameObject.transform.childCount; ++childIndex)
-            {
-                var childTransform = gameObject.transform.GetChild(childIndex);
-
-                if (childTransform != null)
-                {
-                    PrintObjectTree(childTransform.gameObject, prefix + "  ");
-                }
-            }
-        }
-
-        private void PrintComponents(GameObject gameObject)
-        {
-            if (gameObject == null)
-                return;
-
-            Plugin.Log?.Warn($"[{gameObject.name} Components]");
-
-            UnityEngine.Component[] components = gameObject.GetComponents(typeof(MonoBehaviour));
-            foreach (UnityEngine.Component component in components)
-            {
-                Plugin.Log?.Warn($"  {component.GetType().Name}");
-            }
         }
         #endregion
     }

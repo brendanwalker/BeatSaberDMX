@@ -108,6 +108,7 @@
     <Compile Include="Plugin.cs" />
     <Compile Include="Configuration\PluginConfig.cs" />
     <Compile Include="BeatSaberDMXController.cs" />
+    <Compile Include="PluginUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Unity-DMX\Core\DmxController.cs" />
     <Compile Include="Unity-DMX\Device\DMXDevice.cs" />

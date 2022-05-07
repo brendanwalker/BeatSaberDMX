@@ -8,6 +8,8 @@ using Unity.Collections.LowLevel.Unsafe;
 using System;
 using System.Runtime.InteropServices;
 using System.IO;
+using BeatSaberDMX;
+using UnityEngine.SceneManagement;
 
 #if UNITY_2017_2_OR_NEWER
 using UnityEngine.XR;
@@ -40,6 +42,7 @@ namespace MikanXR.SDK.Unity
         private float _mikanReconnectTimeout = 0.0f;
         private ulong _lastReceivedVideoSourceFrame = 0;
         private ulong _lastRenderedFrame = 0;
+        private int _loadedSceneCounter = 0;
 
         public UnityEvent _connectEvent = new UnityEvent();
         public UnityEvent ConnectEvent
@@ -65,28 +68,25 @@ namespace MikanXR.SDK.Unity
             }
         }
 
-        [Tooltip("Camera prefab for customized rendering.")]
-        [SerializeField] Camera _MRCamera = null;
-        /// <summary>
-        /// Camera prefab for customized rendering.
-        /// </summary>
-        /// <remarks>
-        /// </remarks>
-        public Camera MRCamera
-        {
-            get
-            {
-                return _MRCamera;
-            }
-            set
-            {
-                _MRCamera = value;
-            }
-        }
+        private Camera _MRCamera = null;
 
         private void Awake()
         {
+            // For this particular MonoBehaviour, we only want one instance to exist at any time, so store a reference to it in a static property
+            //   and destroy any that are created while one already exists.
+            if (_instance != null)
+            {
+                Plugin.Log?.Warn($"Mikan: Instance of {GetType().Name} already exists, destroying.");
+                GameObject.DestroyImmediate(this);
+                return;
+            }
+
+            GameObject.DontDestroyOnLoad(this); // Don't destroy this object on scene changes
             _instance = this;
+            Plugin.Log?.Debug($"Mikan: {name}: Awake()");
+
+            SceneManager.sceneLoaded += SceneManager_sceneLoaded;
+            SceneManager.sceneUnloaded += SceneManager_sceneUnloaded;
         }
 
         void OnEnable()
@@ -135,6 +135,59 @@ namespace MikanXR.SDK.Unity
             }
         }
 
+        private void SceneManager_sceneLoaded(Scene loadedScene, LoadSceneMode loadSceneMode)
+        {
+            Plugin.Log?.Info($"Mikan: New Scene Loaded: {loadedScene.name}");
+
+            if (_loadedSceneCounter == 0)
+            {
+                SpawnMikanCamera();
+            }
+
+            _loadedSceneCounter++;
+        }
+        private void SceneManager_sceneUnloaded(Scene unloadedScene)
+        {
+            Plugin.Log?.Info($"Mikan: Unloading scene {unloadedScene.name}");
+
+            _loadedSceneCounter--;
+
+            if (_loadedSceneCounter <= 0)
+            {
+                DespawnMikanCamera();
+            }
+        }
+
+        void SpawnMikanCamera()
+        {
+            Plugin.Log?.Info("Mikan: Created Mikan Camera");
+            GameObject cameraGameObject = new GameObject(
+                "MikanCamera",
+                new System.Type[] { typeof(Camera) });
+            _MRCamera = cameraGameObject.GetComponent<Camera>();
+            _MRCamera.stereoTargetEye = StereoTargetEyeMask.None;
+            _MRCamera.backgroundColor = Color.gray; 
+            _MRCamera.clearFlags = CameraClearFlags.SolidColor;
+            _MRCamera.forceIntoRenderTexture = true;
+
+            if (_renderTexture != null)
+            {
+                _MRCamera.targetTexture = _renderTexture;
+            }
+
+            updateCameraProjectionMatrix();
+        }
+
+        void DespawnMikanCamera()
+        {
+            if (_MRCamera != null)
+            {
+                Plugin.Log?.Info("Mikan: Destroyed Mikan Camera");
+                Destroy(_MRCamera.gameObject);
+                _MRCamera = null;
+            }
+        }
+
         // Update is called once per frame
         void Update()
         {
@@ -146,12 +199,14 @@ namespace MikanXR.SDK.Unity
                     switch(mikanEvent.event_type)
                     {
                     case MikanEventType.connected:
+                        Plugin.Log?.Warn("Mikan: Connected!");
                         reallocateRenderBuffers();
                         //setupStencils();
                         updateCameraProjectionMatrix();
                         _connectEvent.Invoke();
                         break;
                     case MikanEventType.disconnected:
+                        Plugin.Log?.Warn("Mikan: Disconnected!");
                         _disconnectEvent.Invoke();
                         break;
                     case MikanEventType.videoSourceOpened:
@@ -272,6 +327,8 @@ namespace MikanXR.SDK.Unity
             // Decompose Matrix4x4 into a quaternion and an position
             _MRCamera.transform.localRotation = Quaternion.LookRotation(cameraForward, cameraUp);
             _MRCamera.transform.localPosition = cameraPosition;
+
+            //Plugin.Log?.Error($"Mikan: New camera position {cameraPosition.x},{cameraPosition.y},{cameraPosition.z}");
         }
 
         void reallocateRenderBuffers()
@@ -295,8 +352,17 @@ namespace MikanXR.SDK.Unity
                 desc.color_buffer_type = MikanColorBufferType.ARGB32;
                 desc.depth_buffer_type = MikanDepthBufferType.NONE;
 
-                MikanClientAPI.Mikan_AllocateRenderTargetBuffers(desc, out _renderTargetMemory);
+                if (MikanClientAPI.Mikan_AllocateRenderTargetBuffers(desc, out _renderTargetMemory) != MikanResult.Success)
+                {
+                    Plugin.Log?.Error("Mikan: Failed to allocate render target buffers");
+                }
+
                 createFrameBuffer(mode.resolution_x, mode.resolution_y);
+
+            }
+            else
+            {
+                Plugin.Log?.Error("Mikan: Failed to get video source mode");
             }
         }
 
@@ -306,7 +372,7 @@ namespace MikanXR.SDK.Unity
 
             if (width <= 0 || height <= 0)
             {
-                Debug.LogError("Mikan: Unable to create render texture. Texture dimension must be higher than zero.");
+                Plugin.Log?.Error("Mikan: Unable to create render texture. Texture dimension must be higher than zero.");
                 return false;
             }
 
@@ -321,9 +387,16 @@ namespace MikanXR.SDK.Unity
 
             if (!_renderTexture.Create())
             {
-                Debug.LogError("LIV: Unable to create render texture.");
+                Plugin.Log?.Error("Mikan: Unable to create render texture.");
                 return false;
             }
+
+            if (_MRCamera != null)
+            {
+                _MRCamera.targetTexture = _renderTexture;
+            }
+
+            Plugin.Log?.Info($"Mikan: Created {width}x{height} render target texture");
 
             return bSuccess;
         }
@@ -331,6 +404,12 @@ namespace MikanXR.SDK.Unity
         void freeFrameBuffer()
         {
             if (_renderTexture == null) return;
+
+            if (_MRCamera != null)
+            {
+                _MRCamera.targetTexture = null;
+            }
+
             if (_renderTexture.IsCreated())
             {
                 _renderTexture.Release();
@@ -340,17 +419,25 @@ namespace MikanXR.SDK.Unity
 
         void updateCameraProjectionMatrix()
         {
-            MikanVideoSourceIntrinsics videoSourceIntrinsics;
-            if (MikanClientAPI.Mikan_GetVideoSourceIntrinsics(out videoSourceIntrinsics) == MikanResult.Success)
+            if (MikanClientAPI.Mikan_GetIsConnected())
             {
-                MikanMonoIntrinsics monoIntrinsics = videoSourceIntrinsics.intrinsics.mono;
-                float videoSourcePixelWidth = (float)monoIntrinsics.pixel_width;
-                float videoSourcePixelHeight = (float)monoIntrinsics.pixel_height;
+                MikanVideoSourceIntrinsics videoSourceIntrinsics;
+                if (MikanClientAPI.Mikan_GetVideoSourceIntrinsics(out videoSourceIntrinsics) == MikanResult.Success)
+                {
+                    MikanMonoIntrinsics monoIntrinsics = videoSourceIntrinsics.intrinsics.mono;
+                    float videoSourcePixelWidth = (float)monoIntrinsics.pixel_width;
+                    float videoSourcePixelHeight = (float)monoIntrinsics.pixel_height;
 
-                MRCamera.fieldOfView = (float)monoIntrinsics.vfov;
-                MRCamera.aspect = videoSourcePixelWidth / videoSourcePixelHeight;
-                MRCamera.nearClipPlane = (float)monoIntrinsics.znear;
-                MRCamera.farClipPlane = (float)monoIntrinsics.zfar;
+                    if (_MRCamera != null)
+                    {
+                        _MRCamera.fieldOfView = (float)monoIntrinsics.vfov;
+                        _MRCamera.aspect = videoSourcePixelWidth / videoSourcePixelHeight;
+                        _MRCamera.nearClipPlane = (float)monoIntrinsics.znear;
+                        _MRCamera.farClipPlane = (float)monoIntrinsics.zfar;
+
+                        Plugin.Log?.Info($"Mikan: Updated camera params: fov:{_MRCamera.fieldOfView}, aspect:{_MRCamera.aspect}, near:{_MRCamera.nearClipPlane}, far:{_MRCamera.farClipPlane}");
+                    }
+                }
             }
         }
 
@@ -395,9 +482,11 @@ namespace MikanXR.SDK.Unity
         void render(ulong frame_index)
         {
             _lastRenderedFrame = frame_index;
-            _MRCamera.targetTexture = _renderTexture;
-            _MRCamera.Render();
-            _MRCamera.targetTexture = null;
+
+            if (_MRCamera != null)
+            {
+                _MRCamera.Render();
+            }
 
             if (_renderTargetMemory.color_buffer != IntPtr.Zero)
             {
