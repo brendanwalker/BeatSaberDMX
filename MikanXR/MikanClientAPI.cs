@@ -48,6 +48,7 @@ namespace MikanXR.SDK.Unity
         NoCameraAssignedTracker = -16,
         InvalidDeviceID = -17,
         InvalidStencilID = -18,
+        TooManyStencils = -19,
     };
 
     public enum MikanLogLevel
@@ -336,6 +337,7 @@ namespace MikanXR.SDK.Unity
     public struct MikanStencilQuad
     {
         public MikanStencilID stencil_id; // filled in on allocation
+        public MikanSpatialAnchorID parent_anchor_id; // if invalid, stencil is in world space
         public MikanVector3f quad_center;
         public MikanVector3f quad_x_axis;
         public MikanVector3f quad_y_axis;
