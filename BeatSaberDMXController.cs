@@ -21,27 +21,10 @@ namespace BeatSaberDMX
         public VRController LeftVRController { get; private set; }
         public VRController RightVRController { get; private set; }
 
-        private List<GameObject> DMXGameObjects = new List<GameObject>();
-
-        DMXPixelGrid panel;
-        DmxController dmxController;
-
         private void SceneManager_sceneLoaded(Scene loadedScene, LoadSceneMode loadSceneMode)
         {
             Plugin.Log?.Info($"New Scene Loaded: {loadedScene.name}");
 
-            //if (loadedScene.name == MenuSceneName)
-            //{
-            //    Plugin.Log?.Warn("[Scene Game Objects]");
-            //    PrintObjectTreeInScene(loadedScene);
-
-            //    Plugin.Log?.Info("Binding Devices...");
-            //    if (BindMenuSceneComponents(loadedScene))
-            //    {
-            //        Plugin.Log?.Info("Spawning DMX Game Objects...");
-            //        SpawnDMXGameObjects();
-            //    }
-            //}
             if (loadedScene.name == GameSceneName)
             {
                 Plugin.Log?.Warn("[Scene Game Objects]");
@@ -51,7 +34,7 @@ namespace BeatSaberDMX
                 if (BindGameSceneComponents(loadedScene))
                 {
                     Plugin.Log?.Info("Spawning DMX Game Objects...");
-                    SpawnDMXGameObjects();
+                    SpawnDMXScene();
                 }
             }
             else
@@ -65,7 +48,7 @@ namespace BeatSaberDMX
 
             if (unloadedScene.name == GameSceneName || unloadedScene.name == MenuSceneName)
             {
-                DespawnDMXGameObjects();
+                DespawnDMXScene();
                 UnbindSceneComponents();
             }
         }
@@ -73,7 +56,7 @@ namespace BeatSaberDMX
         bool BindGameSceneComponents(Scene loadedScene)
         {
             GameObject localPlayerGameCore = PluginUtils.FindGameObjectRecursiveInScene(loadedScene, "LocalPlayerGameCore");
-            //PrintComponents(localPlayerGameCore);
+            //PluginUtils.PrintComponents(localPlayerGameCore);
             if (localPlayerGameCore == null)
             {
                 Plugin.Log?.Warn("Failed to find LocalPlayerGameCore game object, bailing!");
@@ -81,7 +64,7 @@ namespace BeatSaberDMX
             }
 
             GameOrigin = localPlayerGameCore.transform.Find("Origin");
-            //PrintComponents(GameOrigin?.gameObject);
+            //PluginUtils.PrintComponents(GameOrigin?.gameObject);
             if (GameOrigin == null)
             {
                 Plugin.Log?.Warn("Failed to find Origin transform, bailing!");
@@ -89,7 +72,7 @@ namespace BeatSaberDMX
             }
 
             GameObject vrGameCore = GameOrigin?.Find("VRGameCore")?.gameObject;
-            //PrintComponents(vrGameCoreTransform);
+            //PluginUtils.PrintComponents(vrGameCoreTransform);
             if (vrGameCore == null)
             {
                 Plugin.Log?.Warn("Failed to find VRGameCore game object, bailing!");
@@ -106,7 +89,7 @@ namespace BeatSaberDMX
         bool BindMenuSceneComponents(Scene loadedScene)
         {
             GameObject menuCore = PluginUtils.FindGameObjectRecursiveInScene(loadedScene, "MenuCore");
-            //PrintComponents(menuCore);
+            //PluginUtils.PrintComponents(menuCore);
             if (menuCore == null)
             {
                 Plugin.Log?.Warn("Failed to find MenuCore game object, bailing!");
@@ -114,7 +97,7 @@ namespace BeatSaberDMX
             }
 
             GameOrigin = menuCore.transform.Find("Origin");
-            //PrintComponents(GameOrigin?.gameObject);
+            //PluginUtils.PrintComponents(GameOrigin?.gameObject);
             if (GameOrigin == null)
             {
                 Plugin.Log?.Warn("Failed to find Origin transform, bailing!");
@@ -122,7 +105,7 @@ namespace BeatSaberDMX
             }
 
             Transform menuControllers = GameOrigin?.Find("MenuControllers");
-            //PrintComponents(menuControllers);
+            //PluginUtils.PrintComponents(menuControllers);
             if (menuControllers == null)
             {
                 Plugin.Log?.Warn("Failed to find MenuControllers game object, bailing!");
@@ -130,7 +113,7 @@ namespace BeatSaberDMX
             }
 
             GameObject controllerLeft = menuControllers?.Find("ControllerLeft")?.gameObject;
-            //PrintComponents(controllerLeft);
+            //PluginUtils.PrintComponents(controllerLeft);
             if (controllerLeft == null)
             {
                 Plugin.Log?.Warn("Failed to find ControllerLeft game object, bailing!");
@@ -138,7 +121,7 @@ namespace BeatSaberDMX
             }
 
             GameObject controllerRight = menuControllers?.Find("ControllerRight")?.gameObject;
-            //PrintComponents(controllerRight);
+            //PluginUtils.PrintComponents(controllerRight);
             if (controllerRight == null)
             {
                 Plugin.Log?.Warn("Failed to find ControllerRight game object, bailing!");
@@ -160,42 +143,16 @@ namespace BeatSaberDMX
             RightVRController = null;
         }
 
-        void SpawnDMXGameObjects()
+        void SpawnDMXScene()
         {
-            panel = DMXPixelGrid.InstantateGameObject("LanternPanel");
-            panel.SetupPixelGridGeometry(
-                    DMXPixelGrid.ePixelGridLayout.VerticalLinesZigZagMirrored,
-                    0.61f, 0.111f, 0.23f,
-                    8, 14);
-            Vector3 pos = GameOrigin.position + new Vector3(-0.58f, 1.56f, 1.00f);
-            panel.gameObject.transform.position = pos;
-            panel.gameObject.transform.rotation = Quaternion.AngleAxis(-90.0f, Vector3.up);
-            GameObject.DontDestroyOnLoad(panel.gameObject);
-            DMXGameObjects.Add(panel.gameObject);
-
-            GameObject dmxControllerGameObject = new GameObject(
-                "DmxController",
-                new System.Type[] { typeof(DmxController) });
-            dmxController = dmxControllerGameObject.GetComponent<DmxController>();
-            dmxController.useBroadcast = false;
-            dmxController.remoteIP = "wled-hanabi.local";
-            //dmxController.remoteIP = "10.0.0.251";
-            dmxController.fps = 30;
-            dmxController.AddDMXDeviceToUniverse(1, panel);
-            GameObject.DontDestroyOnLoad(dmxControllerGameObject);
-            DMXGameObjects.Add(dmxControllerGameObject);
-
-            Plugin.Log?.Info($"Spawned Lantern at {pos.x},{pos.y},{pos.z}");
+            Plugin.Log?.Warn("[Loading DMX Scene]");
+            DMXSceneManager.Instance.LoadDMXScene(GameOrigin);
         }
 
-        void DespawnDMXGameObjects()
+        void DespawnDMXScene()
         {
-            Plugin.Log?.Info("DespawnDMXGameObjects");
-            foreach (GameObject go in DMXGameObjects)
-            {
-                Destroy(go);
-            }
-            DMXGameObjects.Clear();
+            Plugin.Log?.Warn("[Unloading DMX Scene]");
+            DMXSceneManager.Instance.UnloadDMXScene();
         }
 
         public bool GetLedInteractionSegment(

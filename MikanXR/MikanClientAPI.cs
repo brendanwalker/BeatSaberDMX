@@ -49,6 +49,8 @@ namespace MikanXR.SDK.Unity
         InvalidDeviceID = -17,
         InvalidStencilID = -18,
         TooManyStencils = -19,
+        InvalidAPI = -20,
+        SharedTextureError = -21,
     };
 
     public enum MikanLogLevel
@@ -101,7 +103,7 @@ namespace MikanXR.SDK.Unity
     {
         NONE,
         RGB24,
-        ARGB32,
+        RGBA32,
     };
 
     public enum MikanDepthBufferType
@@ -122,6 +124,16 @@ namespace MikanXR.SDK.Unity
         RenderTarget_DEPTH16 = 1L << 2,
         RenderTarget_DEPTH32 = 1L << 3,
     };
+
+    public enum MikanClientGraphicsAPI
+    {
+        UNKNOWN,
+
+        Direct3D9,
+        Direct3D11,
+        Direct3D12,
+        OpenGL,
+    }
 
     public enum MikanEventType
     {
@@ -298,9 +310,8 @@ namespace MikanXR.SDK.Unity
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string xrDeviceName;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string graphicsAPI;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string mikanSdkVersion;
+        public MikanClientGraphicsAPI graphicsAPI;
     };
 
     // A float RGB color with [0,1] components.
@@ -320,6 +331,7 @@ namespace MikanXR.SDK.Unity
         public MikanDepthBufferType depth_buffer_type;
         public uint width;
         public uint height;
+        public MikanClientGraphicsAPI graphicsAPI;
     };
 
     [StructLayout(LayoutKind.Sequential)]
@@ -331,6 +343,8 @@ namespace MikanXR.SDK.Unity
         public UIntPtr depth_buffer_size;
         public uint width;
         public uint height;
+        public IntPtr color_texture_pointer;
+        public MikanClientGraphicsAPI graphics_api;
     };
 
     [StructLayout(LayoutKind.Sequential)]
@@ -540,7 +554,7 @@ namespace MikanXR.SDK.Unity
         public static extern MikanResult Mikan_Initialize(
             MikanLogLevel log_level,
             [MarshalAs(UnmanagedType.LPStr)]
-        string log_filename);
+            string log_filename);
 
         [DllImport("Mikan_CAPI")]
         public static extern bool Mikan_GetIsInitialized();
@@ -587,6 +601,9 @@ namespace MikanXR.SDK.Unity
         public static extern MikanResult Mikan_AllocateRenderTargetBuffers(
             MikanRenderTargetDescriptor descriptor,
             [Out] out MikanRenderTargetMemory out_memory);
+
+        [DllImport("Mikan_CAPI")]
+        public static extern MikanResult Mikan_PublishRenderTargetTexture(IntPtr api_texture_ptr, ulong frame_index);
 
         [DllImport("Mikan_CAPI")]
         public static extern MikanResult Mikan_PublishRenderTargetBuffers(ulong frame_index);

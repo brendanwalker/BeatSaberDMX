@@ -68,6 +68,7 @@ namespace BeatSaberDMX
             GameObject gameObject = new GameObject("BeatSaberDMXPlugin");
             gameObject.AddComponent<BeatSaberDMXController>();
             gameObject.AddComponent<MikanClient>();
+            gameObject.AddComponent<DMXSceneManager>();
             ApplyHarmonyPatches();
         }
 

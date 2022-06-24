@@ -28,6 +28,10 @@ namespace MikanXR.SDK.Unity
     [AddComponentMenu("MikanXR/Mikan")]
     public class MikanClient : MonoBehaviour
     {
+        private static String GameSceneName = "StandardGameplay";
+        private static String MenuSceneName = "MainMenu";
+        private List<string> _loadedSceneNames = new List<string>();
+
         private static MikanClient _instance = null;
 
         private MikanClientInfo _clientInfo;
@@ -37,7 +41,6 @@ namespace MikanXR.SDK.Unity
         private RenderTexture _renderTexture;
         private AsyncGPUReadbackRequest _readbackRequest = new AsyncGPUReadbackRequest();
 
-        private bool _enabled = false;
         private bool _apiInitialized = false;
         private float _mikanReconnectTimeout = 0.0f;
         private ulong _lastReceivedVideoSourceFrame = 0;
@@ -91,8 +94,21 @@ namespace MikanXR.SDK.Unity
 
         void OnEnable()
         {
-            _enabled = true;
             _apiInitialized = false;
+
+            MikanClientGraphicsAPI graphicsAPI = MikanClientGraphicsAPI.UNKNOWN;
+            switch(SystemInfo.graphicsDeviceType)
+            {
+                case GraphicsDeviceType.Direct3D11:
+                    graphicsAPI = MikanClientGraphicsAPI.Direct3D11;
+                    break;
+                case GraphicsDeviceType.OpenGLCore:
+                case GraphicsDeviceType.OpenGLES2:
+                case GraphicsDeviceType.OpenGLES3:
+                    graphicsAPI = MikanClientGraphicsAPI.OpenGL;
+                    break;
+            }
+
             _clientInfo = new MikanClientInfo()
             {
                 supportedFeatures = MikanClientFeatures.RenderTarget_RGBA32,
@@ -103,7 +119,7 @@ namespace MikanXR.SDK.Unity
 #if UNITY_2017_2_OR_NEWER
                 xrDeviceName = XRSettings.loadedDeviceName,
 #endif
-                graphicsAPI = SystemInfo.graphicsDeviceType.ToString(),
+                graphicsAPI = graphicsAPI,
                 mikanSdkVersion = SDKConstants.SDK_VERSION,
             };
 
@@ -116,8 +132,6 @@ namespace MikanXR.SDK.Unity
 
         void OnDisable()
         {
-            _enabled = false;
-
             if (_apiInitialized)
             {
                 if (!_readbackRequest.done)
@@ -126,10 +140,6 @@ namespace MikanXR.SDK.Unity
                 }
 
                 freeFrameBuffer();
-                MikanClientAPI.Mikan_FreeRenderTargetBuffers();
-
-                MikanClientAPI.Mikan_Disconnect();
-
                 MikanClientAPI.Mikan_Shutdown();
                 _apiInitialized = false;
             }
@@ -139,22 +149,92 @@ namespace MikanXR.SDK.Unity
         {
             Plugin.Log?.Info($"Mikan: New Scene Loaded: {loadedScene.name}");
 
-            if (_loadedSceneCounter == 0)
+            if (_loadedSceneNames.Count == 0)
             {
                 SpawnMikanCamera();
             }
 
-            _loadedSceneCounter++;
+            _loadedSceneNames.Add(loadedScene.name);
+            UpdateCameraAttachment();
         }
+
         private void SceneManager_sceneUnloaded(Scene unloadedScene)
         {
             Plugin.Log?.Info($"Mikan: Unloading scene {unloadedScene.name}");
 
-            _loadedSceneCounter--;
-
-            if (_loadedSceneCounter <= 0)
+            _loadedSceneNames.Remove(unloadedScene.name);
+            if (_loadedSceneNames.Count == 0)
             {
                 DespawnMikanCamera();
+            }
+            else
+            {
+                UpdateCameraAttachment();
+            }
+        }
+
+        private void UpdateCameraAttachment()
+        {
+            if (_MRCamera == null)
+            {
+                return;
+            }
+
+            // Find the camera origin based on the scene taht
+            Transform CameraOrigin = null;
+            
+            if (_loadedSceneNames.Contains(GameSceneName))
+            {
+                Scene gameScene= SceneManager.GetSceneByName(GameSceneName);
+
+                //Plugin.Log?.Warn("[Scene Game Objects]");
+                //PluginUtils.PrintObjectTreeInScene(gameScene);
+
+                GameObject localPlayerGameCore = PluginUtils.FindGameObjectRecursiveInScene(gameScene, "LocalPlayerGameCore");
+                //PluginUtils.PrintComponents(localPlayerGameCore);
+                if (localPlayerGameCore != null)
+                {
+                    CameraOrigin = localPlayerGameCore.transform.Find("Origin");
+                    //PluginUtils.PrintComponents(GameOrigin?.gameObject);
+                    if (CameraOrigin == null)
+                    {
+                        Plugin.Log?.Warn("Failed to find Origin transform!");
+                    }
+                }
+                else
+                {
+                    Plugin.Log?.Warn("Failed to find LocalPlayerGameCore game object!");
+                }
+            }
+            
+            if (CameraOrigin == null && _loadedSceneNames.Contains(MenuSceneName))
+            {
+                Scene menuScene = SceneManager.GetSceneByName(MenuSceneName);
+
+                //Plugin.Log?.Warn("[Scene Game Objects]");
+                //PluginUtils.PrintObjectTreeInScene(loadedScene);
+
+                GameObject menuCore = PluginUtils.FindGameObjectRecursiveInScene(menuScene, "MenuCore");
+                //PluginUtils.PrintComponents(menuCore);
+                if (menuCore != null)
+                {
+                    CameraOrigin = menuCore.transform.Find("Origin");
+                    //PluginUtils.PrintComponents(GameOrigin?.gameObject);
+                    if (CameraOrigin == null)
+                    {
+                        Plugin.Log?.Warn("Failed to find Origin transform!");
+                    }
+                }
+                else
+                {
+                    Plugin.Log?.Warn("Failed to find MenuCore game object!");
+                }
+            }
+
+            if (CameraOrigin != null)
+            {
+                _MRCamera.transform.parent = CameraOrigin;
+                Plugin.Log?.Warn("Updating camera origin to "+ CameraOrigin.name);
             }
         }
 
@@ -349,9 +429,10 @@ namespace MikanXR.SDK.Unity
                     g= BackgroundColorKey.g, 
                     b= BackgroundColorKey.b
                 };
-                desc.color_buffer_type = MikanColorBufferType.ARGB32;
+                desc.color_buffer_type = MikanColorBufferType.RGBA32;
                 desc.depth_buffer_type = MikanDepthBufferType.NONE;
-
+				desc.graphicsAPI = _clientInfo.graphicsAPI;
+				
                 if (MikanClientAPI.Mikan_AllocateRenderTargetBuffers(desc, out _renderTargetMemory) != MikanResult.Success)
                 {
                     Plugin.Log?.Error("Mikan: Failed to allocate render target buffers");
@@ -488,7 +569,15 @@ namespace MikanXR.SDK.Unity
                 _MRCamera.Render();
             }
 
-            if (_renderTargetMemory.color_buffer != IntPtr.Zero)
+            if (_clientInfo.graphicsAPI == MikanClientGraphicsAPI.Direct3D11 ||
+                _clientInfo.graphicsAPI == MikanClientGraphicsAPI.OpenGL)
+            {
+                IntPtr textureNativePtr = _renderTexture.GetNativeTexturePtr();
+
+                // Fast interprocess shared texture transfer
+                MikanClientAPI.Mikan_PublishRenderTargetTexture(textureNativePtr, frame_index);
+            }
+            else if (_renderTargetMemory.color_buffer != IntPtr.Zero)
             {
                 _readbackRequest= AsyncGPUReadback.Request(_renderTexture, 0, ReadbackCompleted);
             }

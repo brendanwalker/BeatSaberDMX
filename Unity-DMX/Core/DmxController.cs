@@ -15,14 +15,52 @@ public class DmxController : MonoBehaviour
     public bool useBroadcast;
     public string remoteIP = "localhost";
     public float fps = 30;
+    public int startUniverseId = 1;
 
     public bool IsBroadcasting { get; private set; }
 
+    public struct DMXLayoutSubsection
+    {
+        public DMXChannelLayout channelLayout;
+        public int layoutStartIndex;
+        public int universeStartIndex;
+        public int channelCount;
+    }
+
     public class DMXUniverse
     {
-        public int universeId = 0;
-        public List<DMXDevice> devices = new List<DMXDevice>();
+        public static int kMaxChannelsPerUniverse= 512;
+
+        public int universeId = 1;
+        public List<DMXLayoutSubsection> sections = new List<DMXLayoutSubsection>();
         public byte[] dmxData = new byte[0];
+
+        public int AppendDMXLayout(DMXChannelLayout layout, int layoutStartIndex, int channelsToAdd)
+        {
+            if (dmxData.Length < kMaxChannelsPerUniverse)
+            {
+                DMXLayoutSubsection newSection = new DMXLayoutSubsection();
+                newSection.channelLayout = layout;
+                newSection.layoutStartIndex = layoutStartIndex;
+                newSection.universeStartIndex = dmxData.Length;
+                newSection.channelCount = channelsToAdd;
+
+                // Only add channels up to the max allowed 
+                if (dmxData.Length + channelsToAdd > kMaxChannelsPerUniverse)
+                {
+                    newSection.channelCount = kMaxChannelsPerUniverse - dmxData.Length;
+                }
+
+                dmxData = new byte[dmxData.Length + newSection.channelCount];
+
+                return newSection.channelCount;
+            }
+            else
+            {
+                // Universe is full! No channels added.
+                return 0;
+            }
+        }
     }
 
     protected List<DMXUniverse> universes = new List<DMXUniverse>();
@@ -46,33 +84,38 @@ public class DmxController : MonoBehaviour
         StopBroadcasting();
     }
 
-    public DMXUniverse FindUniverseById(int UniverseId)
+    public void AppendDMXLayout(DMXChannelLayout device)
     {
-        return universes.Find(u => u.universeId == UniverseId);
-    }
+        int channelsRemaining= device.NumChannels;
+        int layoutStartIndex = 0;
 
-    public bool AddDMXDeviceToUniverse(int UniverseId, DMXDevice device)
-    {
-        DMXUniverse universe = FindUniverseById(UniverseId);
+        DMXUniverse currentUniverse = null;
 
-        if (universe == null)
+        if (universes.Count > 0)
         {
-            universe = new DMXUniverse();
-            universe.universeId = UniverseId;
-            universes.Add(universe);
-        }
-
-        int newDmxDataLength = universe.dmxData.Length + device.NumChannels;
-        if (newDmxDataLength <= 512)
-        {
-            universe.devices.Add(device);
-            universe.dmxData = new byte[newDmxDataLength];
-
-            return true;
+            currentUniverse = universes[universes.Count - 1];
         }
         else
         {
-            return false;
+            currentUniverse = new DMXUniverse();
+            currentUniverse.universeId = startUniverseId;
+            universes.Add(currentUniverse);
+        }
+
+        while (channelsRemaining > 0)
+        {
+            int channelsAdded = currentUniverse.AppendDMXLayout(device, layoutStartIndex, channelsRemaining);
+            layoutStartIndex += channelsAdded;
+            channelsRemaining -= channelsAdded;
+
+            if (channelsRemaining > 0)
+            {
+                DMXUniverse newUniverse = new DMXUniverse();
+                newUniverse.universeId = currentUniverse.universeId + 1;
+
+                universes.Add(newUniverse);
+                currentUniverse = newUniverse;
+            }
         }
     }
 
@@ -142,21 +185,19 @@ public class DmxController : MonoBehaviour
             foreach (var universe in universes)
             {
                 //Debug.Log(string.Format("universe {0} has {1} devices", universe.universeId, universe.devices.Count));
-                if (universe.devices.Count == 0)
+                if (universe.sections.Count == 0)
                 {
                     continue;
                 }
 
-                // Pack each device's DMX channel buffer into the universe's channels.
+                // Pack each DMX channel layout's buffer into the universe's channels.
                 // The universe channel buffer should have been allocated at this point.
-                int startChannel = 0;
-                foreach (DMXDevice device in universe.devices)
+                foreach (DMXLayoutSubsection section in universe.sections)
                 {
                     Array.Copy(
-                        device.dmxData, 0,
-                        universe.dmxData, startChannel,
-                        device.dmxData.Length);
-                    startChannel += device.dmxData.Length;
+                        section.channelLayout.dmxData, section.layoutStartIndex,
+                        universe.dmxData, section.universeStartIndex,
+                        section.channelCount);
                 }
 
                 //Debug.Log(string.Format("Sending {0} channels", universe.dmxData.Length));

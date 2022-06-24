@@ -11,13 +11,17 @@ namespace BeatSaberDMX.Configuration
         // Must be 'virtual' if you want BSIPA to detect a value change and save the config automatically.
         public virtual float SaberPaintRadius { get; set; } = 0.05f;
         public virtual float SaberPaintDecayRate { get; set; } = 2.0f;
+        public virtual string DMXSceneFilePath { get; set; } = "";
 
         /// <summary>
         /// This is called whenever BSIPA reads the config from disk (including when file changes are detected).
         /// </summary>
         public virtual void OnReload()
         {
-            // Do stuff after config is read from disk.
+            if (DMXSceneManager.Instance != null)
+            {
+                DMXSceneManager.Instance.PatchLoadedDMXScene();
+            }
         }
 
         /// <summary>
@@ -25,7 +29,10 @@ namespace BeatSaberDMX.Configuration
         /// </summary>
         public virtual void Changed()
         {
-            // Do stuff when the config is changed.
+            if (DMXSceneManager.Instance != null)
+            {
+                DMXSceneManager.Instance.PatchLoadedDMXScene();
+            }
         }
 
         /// <summary>
