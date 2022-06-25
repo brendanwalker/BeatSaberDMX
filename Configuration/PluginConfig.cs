@@ -18,9 +18,9 @@ namespace BeatSaberDMX.Configuration
         /// </summary>
         public virtual void OnReload()
         {
-            if (DMXSceneManager.Instance != null)
+            if (DmxSceneManager.Instance != null)
             {
-                DMXSceneManager.Instance.PatchLoadedDMXScene();
+                DmxSceneManager.Instance.PatchLoadedDMXScene();
             }
         }
 
@@ -29,9 +29,9 @@ namespace BeatSaberDMX.Configuration
         /// </summary>
         public virtual void Changed()
         {
-            if (DMXSceneManager.Instance != null)
+            if (DmxSceneManager.Instance != null)
             {
-                DMXSceneManager.Instance.PatchLoadedDMXScene();
+                DmxSceneManager.Instance.PatchLoadedDMXScene();
             }
         }
 

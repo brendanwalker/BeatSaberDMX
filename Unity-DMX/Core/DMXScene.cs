@@ -6,12 +6,12 @@ using BeatSaberDMX.Configuration;
 using Newtonsoft.Json;
 using UnityEngine;
 
-public class DMXSceneManager : MonoBehaviour
+public class DmxSceneManager : MonoBehaviour
 {
-    private static DMXSceneManager _instance = null;
-    private DMXSceneInstance _sceneInstance = null;
+    private static DmxSceneManager _instance = null;
+    private DmxSceneInstance _sceneInstance = null;
 
-    public static DMXSceneManager Instance
+    public static DmxSceneManager Instance
     {
         get
         {
@@ -36,6 +36,8 @@ public class DMXSceneManager : MonoBehaviour
         GameObject.DontDestroyOnLoad(this); // Don't destroy this object on scene changes
         _instance = this;
         Plugin.Log?.Debug($"DMXSceneManager: {name}: Awake()");
+
+        TryUpdateDMXScenePath();
     }
 
     public void TryUpdateDMXScenePath()
@@ -108,17 +110,17 @@ public class DMXSceneManager : MonoBehaviour
 
         if (sceneDefinition != null)
         {
-            _sceneInstance = new DMXSceneInstance();
+            _sceneInstance = new DmxSceneInstance();
             _sceneInstance.Initialize(sceneDefinition, gameOrigin);
         }
     }
 }
 
-public class DMXSceneInstance
+public class DmxSceneInstance
 {
     private Transform _gameOrigin = null;
     private DMXSceneDefinition _sceneDefinition= null;
-    private Dictionary<string, DMXLantern> _lanterns = new Dictionary<string, DMXLantern>();
+    private Dictionary<string, DmxLantern> _lanterns = new Dictionary<string, DmxLantern>();
 
     public void Initialize(DMXSceneDefinition sceneDefinition, Transform gameOrigin)
     {
@@ -135,7 +137,7 @@ public class DMXSceneInstance
     {
         foreach (DMXLanternDefinition lanternDefinition in sceneDefinition.Lanterns)
         { 
-            DMXLantern lantern= null;
+            DmxLantern lantern= null;
             if (_lanterns.TryGetValue(lanternDefinition.Name, out lantern))
             {
                 // Patch existing lantern
@@ -163,7 +165,7 @@ public class DMXSceneInstance
     {
         Plugin.Log?.Info($"Despawned all DMX ");
 
-        foreach (DMXLantern lantern in _lanterns.Values)
+        foreach (DmxLantern lantern in _lanterns.Values)
         {
             GameObject.Destroy(lantern.gameObject);
         }
@@ -178,7 +180,7 @@ public class DMXSceneInstance
             return;              
         }
 
-        DMXLantern lantern = DMXLantern.InstantateGameObject(definition.Name);
+        DmxLantern lantern = DmxLantern.InstantateGameObject(definition.Name);
         GameObject.DontDestroyOnLoad(lantern.gameObject);
         
         lantern.SetupPixelGeometry(geometry);
@@ -195,7 +197,7 @@ public class DMXSceneInstance
         Plugin.Log?.Info($"Spawned Lantern {definition.Name}");
     }
 
-    void DisposeLanternInstance(DMXLantern lantern)
+    void DisposeLanternInstance(DmxLantern lantern)
     {
         Plugin.Log?.Info($"Despawned Lantern {lantern.gameObject.name}");
         _lanterns.Remove(lantern.gameObject.name);

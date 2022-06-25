@@ -21,7 +21,7 @@ public class DmxController : MonoBehaviour
 
     public struct DMXLayoutSubsection
     {
-        public DMXChannelLayout channelLayout;
+        public DmxChannelLayout channelLayout;
         public int layoutStartIndex;
         public int universeStartIndex;
         public int channelCount;
@@ -35,7 +35,7 @@ public class DmxController : MonoBehaviour
         public List<DMXLayoutSubsection> sections = new List<DMXLayoutSubsection>();
         public byte[] dmxData = new byte[0];
 
-        public int AppendDMXLayout(DMXChannelLayout layout, int layoutStartIndex, int channelsToAdd)
+        public int AppendDMXLayout(DmxChannelLayout layout, int layoutStartIndex, int channelsToAdd)
         {
             if (dmxData.Length < kMaxChannelsPerUniverse)
             {
@@ -84,7 +84,7 @@ public class DmxController : MonoBehaviour
         StopBroadcasting();
     }
 
-    public void AppendDMXLayout(DMXChannelLayout device)
+    public void AppendDMXLayout(DmxChannelLayout device)
     {
         int channelsRemaining= device.NumChannels;
         int layoutStartIndex = 0;

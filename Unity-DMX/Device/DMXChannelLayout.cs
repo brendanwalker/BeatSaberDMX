@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class DMXChannelLayout : MonoBehaviour
+public abstract class DmxChannelLayout : MonoBehaviour
 {
   public byte[] dmxData = new byte[0];
   public abstract int NumChannels { get; }

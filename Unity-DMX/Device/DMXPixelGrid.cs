@@ -9,7 +9,7 @@ using UnityEngine;
 [RequireComponent(typeof(MeshRenderer))]
 [RequireComponent(typeof(CapsuleCollider))]
 [RequireComponent(typeof(Rigidbody))]
-public class DMXPixelGrid : DMXChannelLayout
+public class DmxPixelGrid : DmxChannelLayout
 {
     public enum ePixelGridLayout
     {
@@ -38,11 +38,11 @@ public class DMXPixelGrid : DMXChannelLayout
 
     private int[] vertexToLEDIndexTable;
 
-    public static DMXPixelGrid InstantateGameObject(string Name)
+    public static DmxPixelGrid InstantateGameObject(string Name)
     {
         GameObject ownerGameObject = new GameObject(
             Name,
-            new System.Type[] { typeof(DMXPixelGrid) });
+            new System.Type[] { typeof(DmxPixelGrid) });
 
         var col = ownerGameObject.GetComponent<CapsuleCollider>();
         col.isTrigger = true;
@@ -64,7 +64,7 @@ public class DMXPixelGrid : DMXChannelLayout
             Plugin.Log?.Error($"Failed to find '{shaderName}' shader");
         }
 
-        return ownerGameObject.GetComponent<DMXPixelGrid>();
+        return ownerGameObject.GetComponent<DmxPixelGrid>();
     }
 
     void Awake()
@@ -110,7 +110,7 @@ public class DMXPixelGrid : DMXChannelLayout
             {
                 Vector3 vertex = meshFilter.mesh.vertices[vertexIndex];
 
-                if (DMXDeviceMath.IsPointWithinRadiusOfSegment(localSegmentStart, localSegmentEnd, radius, vertex))
+                if (DmxDeviceMath.IsPointWithinRadiusOfSegment(localSegmentStart, localSegmentEnd, radius, vertex))
                 {
                     runtimeColors[vertexIndex].r = Math.Max(runtimeColors[vertexIndex].r, segmentColor.r);
                     runtimeColors[vertexIndex].g = Math.Max(runtimeColors[vertexIndex].g, segmentColor.g);

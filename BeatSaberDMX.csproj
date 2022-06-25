@@ -115,11 +115,11 @@
     <Compile Include="PluginUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Unity-DMX\Core\DmxController.cs" />
-    <Compile Include="Unity-DMX\Device\DMXChannelLayout.cs" />
-    <Compile Include="Unity-DMX\Device\DMXDeviceMath.cs" />
-    <Compile Include="Unity-DMX\Device\DMXLantern.cs" />
-    <Compile Include="Unity-DMX\Device\DMXPixelGrid.cs" />
-    <Compile Include="Unity-DMX\Core\DMXScene.cs" />
+    <Compile Include="Unity-DMX\Device\DmxChannelLayout.cs" />
+    <Compile Include="Unity-DMX\Device\DmxDeviceMath.cs" />
+    <Compile Include="Unity-DMX\Device\DmxLantern.cs" />
+    <Compile Include="Unity-DMX\Device\DmxPixelGrid.cs" />
+    <Compile Include="Unity-DMX\Core\DmxScene.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="manifest.json" />

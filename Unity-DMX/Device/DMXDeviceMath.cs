@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-public static class DMXDeviceMath
+public static class DmxDeviceMath
 {
     public static float SqrDistance(Vector3 first, Vector3 second)
     {

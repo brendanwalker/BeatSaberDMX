@@ -146,13 +146,13 @@ namespace BeatSaberDMX
         void SpawnDMXScene()
         {
             Plugin.Log?.Warn("[Loading DMX Scene]");
-            DMXSceneManager.Instance.LoadDMXScene(GameOrigin);
+            DmxSceneManager.Instance.LoadDMXScene(GameOrigin);
         }
 
         void DespawnDMXScene()
         {
             Plugin.Log?.Warn("[Unloading DMX Scene]");
-            DMXSceneManager.Instance.UnloadDMXScene();
+            DmxSceneManager.Instance.UnloadDMXScene();
         }
 
         public bool GetLedInteractionSegment(

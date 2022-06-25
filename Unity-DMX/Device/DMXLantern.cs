@@ -9,7 +9,7 @@ using UnityEngine;
 [RequireComponent(typeof(MeshRenderer))]
 [RequireComponent(typeof(CapsuleCollider))]
 [RequireComponent(typeof(Rigidbody))]
-public class DMXLantern : DMXChannelLayout
+public class DmxLantern : DmxChannelLayout
 {
     public float PhysicalArcLengthMeters { get; private set; }
     public float PhysicalRadiusMeters { get; private set; }
@@ -33,11 +33,11 @@ public class DMXLantern : DMXChannelLayout
 
     private int[] vertexToLEDIndexTable;
 
-    public static DMXLantern InstantateGameObject(string Name)
+    public static DmxLantern InstantateGameObject(string Name)
     {
         GameObject ownerGameObject = new GameObject(
             Name,
-            new System.Type[] { typeof(DMXLantern), typeof(DmxController) });
+            new System.Type[] { typeof(DmxLantern), typeof(DmxController) });
 
         var col = ownerGameObject.GetComponent<CapsuleCollider>();
         col.isTrigger = true;
@@ -59,7 +59,7 @@ public class DMXLantern : DMXChannelLayout
             Plugin.Log?.Error($"Failed to find '{shaderName}' shader");
         }
 
-        return ownerGameObject.GetComponent<DMXLantern>();
+        return ownerGameObject.GetComponent<DmxLantern>();
     }
 
     void Awake()
@@ -106,7 +106,7 @@ public class DMXLantern : DMXChannelLayout
             {
                 Vector3 vertex = meshFilter.mesh.vertices[vertexIndex];
 
-                if (DMXDeviceMath.IsPointWithinRadiusOfSegment(localSegmentStart, localSegmentEnd, radius, vertex))
+                if (DmxDeviceMath.IsPointWithinRadiusOfSegment(localSegmentStart, localSegmentEnd, radius, vertex))
                 {
                     runtimeColors[vertexIndex].r = Math.Max(runtimeColors[vertexIndex].r, segmentColor.r);
                     runtimeColors[vertexIndex].g = Math.Max(runtimeColors[vertexIndex].g, segmentColor.g);
