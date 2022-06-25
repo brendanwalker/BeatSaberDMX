@@ -114,12 +114,14 @@
     <Compile Include="BeatSaberDMXController.cs" />
     <Compile Include="PluginUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Unity-DMX\Core\DmxController.cs" />
-    <Compile Include="Unity-DMX\Device\DmxChannelLayout.cs" />
+    <Compile Include="Unity-DMX\Device\DmxDevice.cs" />
+    <Compile Include="Unity-DMX\Device\DmxUniverse.cs" />
+    <Compile Include="Unity-DMX\Layout\DmxLayout.cs" />
+    <Compile Include="Unity-DMX\Scene\DmxScene.cs" />
+    <Compile Include="Unity-DMX\Scene\DmxSceneManager.cs" />
     <Compile Include="Unity-DMX\Device\DmxDeviceMath.cs" />
-    <Compile Include="Unity-DMX\Device\DmxLantern.cs" />
-    <Compile Include="Unity-DMX\Device\DmxPixelGrid.cs" />
-    <Compile Include="Unity-DMX\Core\DmxScene.cs" />
+    <Compile Include="Unity-DMX\Layout\DmxLanternLayout.cs" />
+    <Compile Include="Unity-DMX\Layout\DmxGridLayout.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="manifest.json" />

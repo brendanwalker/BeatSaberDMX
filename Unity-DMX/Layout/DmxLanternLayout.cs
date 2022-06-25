@@ -5,19 +5,25 @@ using BeatSaberDMX;
 using BeatSaberDMX.Configuration;
 using UnityEngine;
 
+public class DmxLanternLayoutDefinition : DmxLayoutDefinition
+{
+    public float PhysicalRadiusMeters { get; set; }
+    public float PhysicalHightMeters { get; set; }
+
+    public int HorizontalPanelPixelCount { get; set; }
+    public int VerticalPanelPixelCount { get; set; }
+    public int PanelCount { get; set; }
+
+    public DmxDeviceDefinition Device { get; set; }
+}
+
+
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
 [RequireComponent(typeof(CapsuleCollider))]
 [RequireComponent(typeof(Rigidbody))]
-public class DmxPixelGrid : DmxChannelLayout
+public class DmxLanternLayoutInstance : DmxLayoutInstance
 {
-    public enum ePixelGridLayout
-    {
-        HorizontalLines,
-        HorizontalLinesZigZag,
-        VerticalLinesZigZagMirrored,
-    }
-
     public float PhysicalArcLengthMeters { get; private set; }
     public float PhysicalRadiusMeters { get; private set; }
     public float PhysicalHightMeters { get; private set; }
@@ -31,6 +37,8 @@ public class DmxPixelGrid : DmxChannelLayout
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
     private CapsuleCollider capsuleCollider;
+    
+    public DmxDeviceInstance Device { get; private set; }
 
     private Mesh runtimeMeshData;
     private Color32[] runtimeColors;
@@ -38,11 +46,12 @@ public class DmxPixelGrid : DmxChannelLayout
 
     private int[] vertexToLEDIndexTable;
 
-    public static DmxPixelGrid InstantateGameObject(string Name)
+    public static DmxLanternLayoutInstance SpawnInstance(DmxLanternLayoutDefinition definition, Transform gameOrigin)
     {
         GameObject ownerGameObject = new GameObject(
-            Name,
-            new System.Type[] { typeof(DmxPixelGrid) });
+            definition.Name,
+            new System.Type[] { typeof(DmxLanternLayoutInstance), typeof(DmxDeviceInstance) });
+        GameObject.DontDestroyOnLoad(ownerGameObject);
 
         var col = ownerGameObject.GetComponent<CapsuleCollider>();
         col.isTrigger = true;
@@ -64,7 +73,20 @@ public class DmxPixelGrid : DmxChannelLayout
             Plugin.Log?.Error($"Failed to find '{shaderName}' shader");
         }
 
-        return ownerGameObject.GetComponent<DmxPixelGrid>();
+        DmxLanternLayoutInstance instance = ownerGameObject.GetComponent<DmxLanternLayoutInstance>();
+
+        instance.SetupPixelGeometry(definition);
+
+        instance.gameObject.transform.parent = gameOrigin;
+        instance.SetDMXTransform(definition.Transform);
+
+        instance.Device.useBroadcast = false;
+        instance.Device.remoteIP = definition.Device.DeviceIP;
+        instance.Device.startUniverseId = definition.Device.StartUniverse;
+        instance.Device.fps = 30;
+        instance.Device.AppendDMXLayout(instance);
+
+        return instance;
     }
 
     void Awake()
@@ -72,6 +94,7 @@ public class DmxPixelGrid : DmxChannelLayout
         capsuleCollider = GetComponent<CapsuleCollider>();
         meshFilter = GetComponent<MeshFilter>();
         meshRenderer = GetComponent<MeshRenderer>();
+        Device = GetComponent<DmxDeviceInstance>();
     }
 
     void OnDestroy()
@@ -151,88 +174,54 @@ public class DmxPixelGrid : DmxChannelLayout
         runtimeMeshData.UploadMeshData(false);
     }
 
-    public bool SetupPixelGridGeometry(
-        ePixelGridLayout layout,
-        float physArcLength, float physRadius, float physHeight,
-        int horizPixelCount, int vertPixelCount)
+    public override void Patch(DmxLayoutDefinition layoutDefinition)
     {
-        PhysicalArcLengthMeters = physArcLength;
-        PhysicalRadiusMeters = physRadius;
-        PhysicalHightMeters = physHeight;
-        HorizontalPixelCount = horizPixelCount;
-        VerticalPixelCount = vertPixelCount;
-        TotalPixelCount = horizPixelCount * vertPixelCount;
+        base.Patch(layoutDefinition);
 
-        if (horizPixelCount < 2 || vertPixelCount < 2)
-            return false;
+        DmxLanternLayoutDefinition lanternDefinition = (DmxLanternLayoutDefinition)layoutDefinition;
+        Device.Patch(lanternDefinition.Device);
+
+        SetDMXTransform(lanternDefinition.Transform);
+    }
+
+    private bool SetupPixelGeometry(DmxLanternLayoutDefinition definition)
+    {
+        int panelHorizPixelCount = definition.HorizontalPanelPixelCount;
+        int panelVertPixelCount = definition.VerticalPanelPixelCount;
+        float physArcLength = (float)Math.PI * definition.PhysicalRadiusMeters; // half circle circumference
+
+        PhysicalArcLengthMeters = physArcLength;
+        PhysicalRadiusMeters = definition.PhysicalRadiusMeters;
+        PhysicalHightMeters = definition.PhysicalHightMeters;
+        HorizontalPixelCount = panelHorizPixelCount;
+        VerticalPixelCount = panelVertPixelCount * definition.PanelCount;
+        TotalPixelCount = HorizontalPixelCount * VerticalPixelCount; 
 
         // Build a table to map from vertex indices to LED indices
         // This is used for writing out DMX data
         vertexToLEDIndexTable = new int[TotalPixelCount];
-        switch (layout)
         {
-            case ePixelGridLayout.HorizontalLines:
-                for (int LedIndex = 0; LedIndex < TotalPixelCount; ++LedIndex)
-                {
-                    vertexToLEDIndexTable[LedIndex] = LedIndex;
-                }
-                break;
-            case ePixelGridLayout.HorizontalLinesZigZag:
-                {
-                    int ledIndex = 0;
-                    for (int rowIndex = 0; rowIndex < vertPixelCount; ++rowIndex)
-                    {
-                        for (int colOffset = 0; colOffset < horizPixelCount; ++colOffset)
-                        {
-                            // Reverse LED direction on odd rows
-                            int colIndex =
-                                (rowIndex % 2 == 1)
-                                ? (horizPixelCount - colOffset - 1)
-                                : colOffset;
+            int ledIndex = 0;
 
-                            vertexToLEDIndexTable[rowIndex * horizPixelCount + colIndex] = ledIndex;
-                            ++ledIndex;
-                        }
+            for (int panelIndex= 0; panelIndex < definition.PanelCount; ++panelIndex)
+            {
+                int panelOffset = panelHorizPixelCount * panelVertPixelCount * panelIndex;
+
+                for (int colIndex = panelHorizPixelCount - 1; colIndex >= 0; --colIndex)
+                {
+                    for (int rowOffset = panelVertPixelCount - 1; rowOffset >= 0 ; --rowOffset)
+                    {
+                        // Reverse LED direction on odd columns
+                        int rowIndex =
+                            (colIndex % 2 == 1)
+                            ? (panelVertPixelCount - rowOffset - 1)
+                            : rowOffset;
+
+                        vertexToLEDIndexTable[rowIndex * panelHorizPixelCount + colIndex + panelOffset] = ledIndex;
+                        ++ledIndex;
                     }
                 }
-                break;
-            case ePixelGridLayout.VerticalLinesZigZagMirrored:
-                {
-                    int ledIndex = 0;
-
-                    // Left half of the columns
-                    for (int colIndex = (horizPixelCount / 2) - 1; colIndex >= 0; --colIndex)
-                    {
-                        for (int rowOffset = 0; rowOffset < vertPixelCount; ++rowOffset)
-                        {
-                            // Reverse LED direction on odd columns
-                            int rowIndex =
-                                (colIndex % 2 == 1)
-                                ? (vertPixelCount - rowOffset - 1)
-                                : rowOffset;
-
-                            vertexToLEDIndexTable[rowIndex * horizPixelCount + colIndex] = ledIndex;
-                            ++ledIndex;
-                        }
-                    }
-
-                    // Right half of the columns
-                    for (int colIndex = (horizPixelCount / 2); colIndex < horizPixelCount; ++colIndex)
-                    {
-                        for (int rowOffset = 0; rowOffset < vertPixelCount; ++rowOffset)
-                        {
-                            // Reverse LED direction on even columns
-                            int rowIndex =
-                                (colIndex % 2 == 0)
-                                ? (vertPixelCount - rowOffset - 1)
-                                : rowOffset;
-
-                            vertexToLEDIndexTable[rowIndex * horizPixelCount + colIndex] = ledIndex;
-                            ++ledIndex;
-                        }
-                    }
-                }
-                break;
+            }
         }
 
         // Static mesh data
@@ -242,26 +231,26 @@ public class DmxPixelGrid : DmxChannelLayout
         // Dynamic mesh data
         runtimeColors = new Color32[TotalPixelCount];
 
-        if (physRadius > 0.0f)
+        if (PhysicalRadiusMeters > 0.0f)
         {
             // ArcLength = Radius * Angular Span
-            float angularSpanRadians = physArcLength / physRadius;
+            float angularSpanRadians = physArcLength / PhysicalRadiusMeters;
 
             // Cylinder around Y-axis, starting LED on +X axis
             int vertIndex = 0;
-            for (int j = 0; j < vertPixelCount; ++j)
+            for (int j = 0; j < panelVertPixelCount; ++j)
             {
-                float v = (float)j / (float)(vertPixelCount - 1);
-                float y = (v - 0.5f) * physHeight;
+                float v = (float)j / (float)(panelVertPixelCount - 1);
+                float y = (v - 0.5f) * PhysicalHightMeters;
 
-                for (int i = 0; i < horizPixelCount; ++i)
+                for (int i = 0; i < panelHorizPixelCount; ++i)
                 {
-                    float u = (float)i / (float)(horizPixelCount - 1);
+                    float u = (float)i / (float)(panelHorizPixelCount - 1);
                     float theta = Mathf.Lerp(-0.5f * angularSpanRadians, 0.5f * angularSpanRadians, u);
                     float nx = Mathf.Cos(theta);
                     float nz = Mathf.Sin(theta);
-                    float x = physRadius * nx;
-                    float z = physRadius * nz;
+                    float x = PhysicalRadiusMeters * nx;
+                    float z = PhysicalRadiusMeters * nz;
 
                     vertices[vertIndex] = new Vector3(x, y, z);
                     normals[vertIndex] = new Vector3(nx, 0.0f, nz);
@@ -273,44 +262,14 @@ public class DmxPixelGrid : DmxChannelLayout
             }
 
             // Create a pill that encapsulated the cylinder
-            capsuleCollider.radius = physRadius;
-            capsuleCollider.height = physHeight + 2.0f * physRadius;
-            capsuleCollider.direction = 1; // y-axis
-        }
-        else
-        {
-            int vertIndex = 0;
-            float x = 0.0f;
-
-            // yz-plane facing down +x
-            for (int j = 0; j < vertPixelCount; ++j)
-            {
-                float v = (float)j / (float)(vertPixelCount - 1);
-                float y = (v - 0.5f) * physHeight;
-
-                for (int i = 0; i < horizPixelCount; ++i)
-                {
-                    float u = (float)i / (float)(horizPixelCount - 1);
-                    float z = (u - 0.5f) * physArcLength;
-
-                    vertices[vertIndex] = new Vector3(x, y, z);
-                    normals[vertIndex] = new Vector3(1.0f, 0.0f, 0.0f);
-                    uv[vertIndex] = new Vector2(u, v);
-                    runtimeColors[vertIndex] = new Color32(0, 0, 0, 255);
-
-                    ++vertIndex;
-                }
-            }
-
-            // Create a pill that encapsulated the rectangle
-            capsuleCollider.radius = physArcLength * 0.5f;
-            capsuleCollider.height = physHeight + 2.0f * capsuleCollider.radius;
+            capsuleCollider.radius = PhysicalRadiusMeters;
+            capsuleCollider.height = PhysicalHightMeters + 2.0f * PhysicalRadiusMeters;
             capsuleCollider.direction = 1; // y-axis
         }
 
         // Create a triangle index array from the grid of vertices
-        int horizQuadCount = (horizPixelCount - 1);
-        int vertQuadCount = (vertPixelCount - 1);
+        int horizQuadCount = (panelHorizPixelCount - 1);
+        int vertQuadCount = (panelVertPixelCount - 1);
         int[] tris = new int[horizQuadCount * vertQuadCount * 6]; // 2 tris per quad * 3 indices per tri
 
         int writeIndex = 0;
@@ -321,7 +280,7 @@ public class DmxPixelGrid : DmxChannelLayout
             {
                 int upperLeftVertIndex = rowStartVertIndex + horizQuadIndex;
                 int upperRightVertIndex = upperLeftVertIndex + 1;
-                int lowerLeftVertIndex = upperLeftVertIndex + horizPixelCount;
+                int lowerLeftVertIndex = upperLeftVertIndex + panelHorizPixelCount;
                 int lowerRightVertIndex = lowerLeftVertIndex + 1;
 
                 // upper left triangle
@@ -337,7 +296,7 @@ public class DmxPixelGrid : DmxChannelLayout
                 writeIndex += 6;
             }
 
-            rowStartVertIndex += horizPixelCount;
+            rowStartVertIndex += panelHorizPixelCount;
         }
 
         // Setup the initial mesh data on the mesh filter

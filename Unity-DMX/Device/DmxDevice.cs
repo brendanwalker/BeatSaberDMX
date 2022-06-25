@@ -10,7 +10,15 @@ using System;
 using System.Threading.Tasks;
 using BeatSaberDMX;
 
-public class DmxController : MonoBehaviour
+public class DmxDeviceDefinition
+{
+    public string DeviceIP { get; set; }
+    public int StartUniverse { get; set; }
+    public int LedCount { get; set; }
+}
+
+
+public class DmxDeviceInstance : MonoBehaviour
 {
     public bool useBroadcast;
     public string remoteIP = "localhost";
@@ -18,50 +26,6 @@ public class DmxController : MonoBehaviour
     public int startUniverseId = 1;
 
     public bool IsBroadcasting { get; private set; }
-
-    public struct DMXLayoutSubsection
-    {
-        public DmxChannelLayout channelLayout;
-        public int layoutStartIndex;
-        public int universeStartIndex;
-        public int channelCount;
-    }
-
-    public class DMXUniverse
-    {
-        public static int kMaxChannelsPerUniverse= 512;
-
-        public int universeId = 1;
-        public List<DMXLayoutSubsection> sections = new List<DMXLayoutSubsection>();
-        public byte[] dmxData = new byte[0];
-
-        public int AppendDMXLayout(DmxChannelLayout layout, int layoutStartIndex, int channelsToAdd)
-        {
-            if (dmxData.Length < kMaxChannelsPerUniverse)
-            {
-                DMXLayoutSubsection newSection = new DMXLayoutSubsection();
-                newSection.channelLayout = layout;
-                newSection.layoutStartIndex = layoutStartIndex;
-                newSection.universeStartIndex = dmxData.Length;
-                newSection.channelCount = channelsToAdd;
-
-                // Only add channels up to the max allowed 
-                if (dmxData.Length + channelsToAdd > kMaxChannelsPerUniverse)
-                {
-                    newSection.channelCount = kMaxChannelsPerUniverse - dmxData.Length;
-                }
-
-                dmxData = new byte[dmxData.Length + newSection.channelCount];
-
-                return newSection.channelCount;
-            }
-            else
-            {
-                // Universe is full! No channels added.
-                return 0;
-            }
-        }
-    }
 
     protected List<DMXUniverse> universes = new List<DMXUniverse>();
 
@@ -84,7 +48,32 @@ public class DmxController : MonoBehaviour
         StopBroadcasting();
     }
 
-    public void AppendDMXLayout(DmxChannelLayout device)
+    public void Patch(DmxDeviceDefinition deviceDefinition)
+    {
+        // See if the IP Address changed
+        if (deviceDefinition.DeviceIP != remoteIP)
+        {
+            StopBroadcasting();
+            remoteIP = deviceDefinition.DeviceIP;
+            StartBroadcasting();
+        }
+
+        // See if the starting universe ID changed
+        if (deviceDefinition.StartUniverse != startUniverseId)
+        {
+            int nextUniverseId = startUniverseId;
+            foreach (DMXUniverse universe in universes)
+            {
+                universe.universeId = nextUniverseId;
+                nextUniverseId++;
+            }
+
+            deviceDefinition.StartUniverse = startUniverseId;
+            SendUniverseDiscoveryPackets();
+        }
+    }
+
+    public void AppendDMXLayout(DmxLayoutInstance device)
     {
         int channelsRemaining= device.NumChannels;
         int layoutStartIndex = 0;
@@ -192,7 +181,7 @@ public class DmxController : MonoBehaviour
 
                 // Pack each DMX channel layout's buffer into the universe's channels.
                 // The universe channel buffer should have been allocated at this point.
-                foreach (DMXLayoutSubsection section in universe.sections)
+                foreach (DMXUniverseSection section in universe.sections)
                 {
                     Array.Copy(
                         section.channelLayout.dmxData, section.layoutStartIndex,
