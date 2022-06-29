@@ -84,7 +84,7 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
         instance.Device.remoteIP = definition.Device.DeviceIP;
         instance.Device.startUniverseId = definition.Device.StartUniverse;
         instance.Device.fps = 30;
-        instance.Device.AppendDMXLayout(instance);
+        instance.Device.AppendDMXLayout(instance, 0, instance.NumChannels);
 
         return instance;
     }

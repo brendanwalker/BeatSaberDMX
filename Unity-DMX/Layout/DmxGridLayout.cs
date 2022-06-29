@@ -93,19 +93,21 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
         instance.SetDMXTransform(layoutDefinition.Transform);
 
         instance.Devices = ownerGameObject.GetComponents<DmxDeviceInstance>();
-        int StartLedIndex = 0;
+
+        int startChannelIndex = 0;
         for (int deviceIndex = 0; deviceIndex < instance.Devices.Length; deviceIndex++)
         {
             DmxDeviceDefinition deviceDefinition = layoutDefinition.Devices[deviceIndex];
             DmxDeviceInstance deviceInstance= instance.Devices[deviceIndex];
+            int channelCount = deviceDefinition.LedCount * 3;
 
             deviceInstance.useBroadcast = false;
             deviceInstance.remoteIP = deviceDefinition.DeviceIP;
             deviceInstance.startUniverseId = deviceDefinition.StartUniverse;
             deviceInstance.fps = 30;
-            deviceInstance.AppendDMXLayout(instance, StartLedIndex, deviceDefinition.LedCount);
+            deviceInstance.AppendDMXLayout(instance, startChannelIndex, channelCount);
 
-            StartLedIndex += deviceDefinition.LedCount;
+            startChannelIndex += channelCount;
         }
 
         return instance;

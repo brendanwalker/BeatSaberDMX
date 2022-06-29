@@ -73,10 +73,10 @@ public class DmxDeviceInstance : MonoBehaviour
         }
     }
 
-    public void AppendDMXLayout(DmxLayoutInstance device)
+    public void AppendDMXLayout(DmxLayoutInstance device, int starChannelIndex, int channelCount)
     {
-        int channelsRemaining= device.NumChannels;
-        int layoutStartIndex = 0;
+        int layoutStartIndex = starChannelIndex;
+        int channelsRemaining = channelCount;
 
         DMXUniverse currentUniverse = null;
 

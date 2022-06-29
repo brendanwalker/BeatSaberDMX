@@ -30,6 +30,27 @@ public class DMXSceneDefinition
 
         return sceneDefinition;
     }
+
+    public bool SaveSceneFile(string scenePath)
+    {
+        bool bSuccess = false;
+
+        try
+        {
+            if (scenePath.Length > 0)
+            {
+                string jsonString = JsonConvert.SerializeObject(this);
+                File.WriteAllText(scenePath, jsonString);
+                bSuccess = true;
+            }
+        }
+        catch (Exception e)
+        {
+            Plugin.Log?.Error($"Failed to save scene {scenePath}: {e.Message}");
+        }
+
+        return bSuccess;
+    }
 }
 
 public class DmxSceneInstance
