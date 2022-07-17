@@ -13,7 +13,7 @@ public struct DMXUniverseSection
 }
 public class DMXUniverse
 {
-    public static int kMaxChannelsPerUniverse = 512;
+    public static int kMaxChannelsPerUniverse = 510;
 
     public int universeId = 1;
     public List<DMXUniverseSection> sections = new List<DMXUniverseSection>();
@@ -36,6 +36,8 @@ public class DMXUniverse
             }
 
             dmxData = new byte[dmxData.Length + newSection.channelCount];
+
+            sections.Add(newSection);
 
             return newSection.channelCount;
         }

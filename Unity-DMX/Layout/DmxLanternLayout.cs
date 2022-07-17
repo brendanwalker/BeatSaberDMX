@@ -34,14 +34,12 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
 
     public override int NumChannels { get { return TotalPixelCount * 3; } }
 
-    private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
     private CapsuleCollider capsuleCollider;
     
     public DmxDeviceInstance Device { get; private set; }
 
     private Mesh runtimeMeshData;
-    private Color32[] runtimeColors;
     private byte[] dmxColorData;
 
     private int[] vertexToLEDIndexTable;
@@ -50,7 +48,10 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
     {
         GameObject ownerGameObject = new GameObject(
             definition.Name,
-            new System.Type[] { typeof(DmxLanternLayoutInstance), typeof(DmxDeviceInstance) });
+            new System.Type[] { 
+                typeof(DmxLanternLayoutInstance), 
+                typeof(DmxDeviceInstance) }
+            );
         GameObject.DontDestroyOnLoad(ownerGameObject);
 
         var col = ownerGameObject.GetComponent<CapsuleCollider>();
@@ -80,6 +81,7 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
         instance.gameObject.transform.parent = gameOrigin;
         instance.SetDMXTransform(definition.Transform);
 
+        instance.Device = ownerGameObject.GetComponent<DmxDeviceInstance>();
         instance.Device.useBroadcast = false;
         instance.Device.remoteIP = definition.Device.DeviceIP;
         instance.Device.startUniverseId = definition.Device.StartUniverse;
@@ -105,43 +107,12 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
 
     private void OnTriggerEnter(Collider other)
     {
-        HandleColliderOverlap(other.gameObject);
+        ProcessSegmentColliderOverlap(other.gameObject);
     }
 
     private void OnTriggerStay(Collider other)
     {
-        HandleColliderOverlap(other.gameObject);
-    }
-
-    public void HandleColliderOverlap(GameObject gameObject)
-    {
-        Vector3 worldSegmentStart;
-        Vector3 worldSegmentEnd;
-        Color32 segmentColor;
-
-        if (BeatSaberDMXController.Instance.GetLedInteractionSegment(
-                    gameObject,
-                    out worldSegmentStart,
-                    out worldSegmentEnd,
-                    out segmentColor))
-        {
-            Vector3 localSegmentStart = this.gameObject.transform.InverseTransformPoint(worldSegmentStart);
-            Vector3 localSegmentEnd = this.gameObject.transform.InverseTransformPoint(worldSegmentEnd);
-            float radius = PluginConfig.Instance.SaberPaintRadius;
-
-            for (int vertexIndex = 0; vertexIndex < runtimeColors.Length; ++vertexIndex)
-            {
-                Vector3 vertex = meshFilter.mesh.vertices[vertexIndex];
-
-                if (DmxDeviceMath.IsPointWithinRadiusOfSegment(localSegmentStart, localSegmentEnd, radius, vertex))
-                {
-                    runtimeColors[vertexIndex].r = Math.Max(runtimeColors[vertexIndex].r, segmentColor.r);
-                    runtimeColors[vertexIndex].g = Math.Max(runtimeColors[vertexIndex].g, segmentColor.g);
-                    runtimeColors[vertexIndex].b = Math.Max(runtimeColors[vertexIndex].r, segmentColor.b);
-                }
-            }
-
-        }
+        ProcessSegmentColliderOverlap(other.gameObject);
     }
 
     private void Update()

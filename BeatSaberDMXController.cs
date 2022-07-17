@@ -7,13 +7,24 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Zenject;
 
 namespace BeatSaberDMX
 {
     public class BeatSaberDMXController : MonoBehaviour
     {
-        private static String GameSceneName = "StandardGameplay";
-        private static String MenuSceneName = "MainMenu";
+        public static readonly string MenuSceneName = "MainMenu";
+        public static readonly string PostSongMenuSceneName = "MainMenu";
+        public static readonly string GameSceneName = "GameCore";
+        public static readonly string HealthWarningSceneName = "HealthWarning";
+        public static readonly string EmptyTransitionSceneName = "EmptyTransition";
+        public static readonly string CreditsSceneName = "Credits";
+        public static readonly string BeatmapEditorSceneName = "BeatmapEditor";
+        readonly string[] MainSceneNames = { GameSceneName, CreditsSceneName, BeatmapEditorSceneName };
+
+        private bool lastMainSceneWasNotMenu = false;
+
+        private GameScenesManager gameScenesManager = null;
 
         public static BeatSaberDMXController Instance { get; private set; }
         public SaberManager GameSaberManager { get; private set; }
@@ -21,35 +32,230 @@ namespace BeatSaberDMX
         public VRController LeftVRController { get; private set; }
         public VRController RightVRController { get; private set; }
 
-        private void SceneManager_sceneLoaded(Scene loadedScene, LoadSceneMode loadSceneMode)
-        {
-            Plugin.Log?.Info($"New Scene Loaded: {loadedScene.name}");
+        public List<Transform> ColorANotes = new List<Transform>();
+        public List<Transform> ColorBNotes = new List<Transform>();
+        public Color ColorA = Color.red;
+        public Color ColorB = Color.blue;
 
-            if (loadedScene.name == GameSceneName)
+        private void SceneManager_activeSceneChanged(Scene currentScene, Scene nextScene)
+        {           
+            try
             {
-                Plugin.Log?.Warn("[Scene Game Objects]");
-                PluginUtils.PrintObjectTreeInScene(loadedScene);
+                Plugin.Log?.Info($"Unloading scene {currentScene.name}");
 
-                Plugin.Log?.Info("Binding Devices...");
-                if (BindGameSceneComponents(loadedScene))
+                if (currentScene.name == GameSceneName || currentScene.name == MenuSceneName)
                 {
-                    Plugin.Log?.Info("Spawning DMX Game Objects...");
-                    SpawnDMXScene();
+                    DespawnDMXScene();
+                    UnbindSceneComponents();
+                }
+
+                if (nextScene.name == GameSceneName)
+                {
+                    //InvokeAll(gameSceneActive);
+
+                    gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
+
+                    if (gameScenesManager != null)
+                    {
+                        gameScenesManager.transitionDidFinishEvent -= GameSceneLoadedCallback;
+                        gameScenesManager.transitionDidFinishEvent += GameSceneLoadedCallback;
+                    }
+                }
+                else if (nextScene.name == MenuSceneName)
+                {
+                    gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
+
+                    //InvokeAll(menuSceneActive);
+
+                    if (gameScenesManager != null)
+                    {
+
+                        if (currentScene.name == EmptyTransitionSceneName && !lastMainSceneWasNotMenu)
+                        {
+                            //     Utilities.Logger.log.Info("Fresh");
+
+                            gameScenesManager.transitionDidFinishEvent -= OnMenuSceneWasLoadedFresh;
+                            gameScenesManager.transitionDidFinishEvent += OnMenuSceneWasLoadedFresh;
+                        }
+                        else
+                        {
+                            gameScenesManager.transitionDidFinishEvent -= OnMenuSceneWasLoaded;
+                            gameScenesManager.transitionDidFinishEvent += OnMenuSceneWasLoaded;
+                        }
+                    }
+
+                    lastMainSceneWasNotMenu = false;
+                }
+
+                if (MainSceneNames.Contains(nextScene.name))
+                {
+                    lastMainSceneWasNotMenu = true;
                 }
             }
-            else
+            catch (Exception e)
             {
-                Plugin.Log?.Info($"  ignoring scene");
+                Plugin.Log?.Error(e);
             }
         }
-        private void SceneManager_sceneUnloaded(Scene unloadedScene)
-        {
-            Plugin.Log?.Info($"Unloading scene {unloadedScene.name}");
 
-            if (unloadedScene.name == GameSceneName || unloadedScene.name == MenuSceneName)
+        private void OnMenuSceneWasLoaded(ScenesTransitionSetupDataSO transitionSetupData, DiContainer diContainer)
+        {
+            gameScenesManager.transitionDidFinishEvent -= OnMenuSceneWasLoaded;
+            //InvokeAll(menuSceneLoaded);
+        }
+
+        private void OnMenuSceneWasLoadedFresh(ScenesTransitionSetupDataSO transitionSetupData, DiContainer diContainer)
+        {
+            gameScenesManager.transitionDidFinishEvent -= OnMenuSceneWasLoadedFresh;
+
+            //var levelDetailViewController = Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().FirstOrDefault();
+            //levelDetailViewController.didChangeDifficultyBeatmapEvent += delegate (StandardLevelDetailViewController vc, IDifficultyBeatmap beatmap) { InvokeAll(difficultySelected, vc, beatmap); };
+
+            //var characteristicSelect = Resources.FindObjectsOfTypeAll<BeatmapCharacteristicSegmentedControlController>().FirstOrDefault();
+            //characteristicSelect.didSelectBeatmapCharacteristicEvent += delegate (BeatmapCharacteristicSegmentedControlController controller, BeatmapCharacteristicSO characteristic) { InvokeAll(characteristicSelected, controller, characteristic); };
+
+            //var packSelectViewController = Resources.FindObjectsOfTypeAll<LevelSelectionNavigationController>().FirstOrDefault();
+            //packSelectViewController.didSelectLevelPackEvent += delegate (LevelSelectionNavigationController controller, IBeatmapLevelPack pack) { InvokeAll(levelPackSelected, controller, pack); };
+            //var levelSelectViewController = Resources.FindObjectsOfTypeAll<LevelCollectionViewController>().FirstOrDefault();
+            //levelSelectViewController.didSelectLevelEvent += delegate (LevelCollectionViewController controller, IPreviewBeatmapLevel level) { InvokeAll(levelSelected, controller, level); };
+
+            //InvokeAll(earlyMenuSceneLoadedFresh, transitionSetupData);
+            //InvokeAll(menuSceneLoadedFresh);
+            //InvokeAll(lateMenuSceneLoadedFresh, transitionSetupData)
+
+            BindGameSceneComponents(SceneManager.GetSceneByName(MenuSceneName));
+        }
+
+        private void GameSceneLoadedCallback(ScenesTransitionSetupDataSO transitionSetupData, DiContainer diContainer)
+        {
+            // Prevent firing this event when returning to menu
+            var gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
+            gameScenesManager.transitionDidFinishEvent -= GameSceneLoadedCallback;
+
+            var pauseManager = diContainer.TryResolve<PauseController>();
+            if (pauseManager != null)
             {
-                DespawnDMXScene();
-                UnbindSceneComponents();
+                pauseManager.didResumeEvent += PauseManager_didResumeEvent;
+                pauseManager.didPauseEvent += PauseManager_didPauseEvent;
+            }
+
+            var beatmapObjectManager = diContainer.TryResolve<BeatmapObjectManager>();
+            if (beatmapObjectManager != null)
+            {
+                beatmapObjectManager.noteWasSpawnedEvent += BeatmapObjectManager_noteWasSpawnedEvent;
+                beatmapObjectManager.noteWasDespawnedEvent += BeatmapObjectManager_noteWasDespawnedEvent;
+                beatmapObjectManager.noteWasCutEvent += BeatmapObjectManager_noteWasCutEvent;
+                beatmapObjectManager.noteWasMissedEvent += BeatmapObjectManager_noteWasMissedEvent;
+            }
+
+            var scoreController = diContainer.TryResolve<ScoreController>();
+            if (scoreController != null)
+            {
+                scoreController.multiplierDidChangeEvent += ScoreController_multiplierDidChangeEvent;
+                scoreController.scoreDidChangeEvent += ScoreController_scoreDidChangeEvent;
+            }
+
+            var saberCollisionManager = Resources.FindObjectsOfTypeAll<ObstacleSaberSparkleEffectManager>().LastOrDefault(x => x.isActiveAndEnabled);
+            if (saberCollisionManager != null)
+            {
+                saberCollisionManager.sparkleEffectDidStartEvent += SaberCollisionManager_sparkleEffectDidStartEvent;
+                saberCollisionManager.sparkleEffectDidEndEvent += SaberCollisionManager_sparkleEffectDidEndEvent;
+            }
+
+            var gameEnergyCounter = Resources.FindObjectsOfTypeAll<GameEnergyCounter>().LastOrDefault(x => x.isActiveAndEnabled);
+            if (gameEnergyCounter != null)
+            {
+                gameEnergyCounter.gameEnergyDidReach0Event += GameEnergyCounter_gameEnergyDidReach0Event;
+                gameEnergyCounter.gameEnergyDidChangeEvent += GameEnergyCounter_gameEnergyDidChangeEvent;
+            }
+
+            var transitionSetup = Resources.FindObjectsOfTypeAll<StandardLevelScenesTransitionSetupDataSO>().FirstOrDefault();
+            if (transitionSetup)
+            {
+                transitionSetup.didFinishEvent -= TransitionSetup_didFinishEvent;
+                transitionSetup.didFinishEvent += TransitionSetup_didFinishEvent;
+            }
+
+            Scene loadedScene = SceneManager.GetSceneByName(GameSceneName);
+            //Plugin.Log?.Warn("[Scene Game Objects]");
+            //PluginUtils.PrintObjectTreeInScene(loadedScene);
+            Plugin.Log?.Info("Binding Devices...");
+            if (BindGameSceneComponents(loadedScene))
+            {
+                Plugin.Log?.Info("Spawning DMX Game Objects...");
+                SpawnDMXScene();
+            }
+        }
+
+        private void TransitionSetup_didFinishEvent(
+            StandardLevelScenesTransitionSetupDataSO setupData, 
+            LevelCompletionResults results)
+        {
+            ColorA = setupData.colorScheme.saberAColor;
+            ColorB = setupData.colorScheme.saberBColor;
+        }
+
+        private void GameEnergyCounter_gameEnergyDidChangeEvent(float obj)
+        {
+        }
+
+        private void GameEnergyCounter_gameEnergyDidReach0Event()
+        {
+        }
+
+        private void SaberCollisionManager_sparkleEffectDidEndEvent(SaberType obj)
+        {
+        }
+
+        private void SaberCollisionManager_sparkleEffectDidStartEvent(SaberType obj)
+        {
+        }
+
+        private void PauseManager_didPauseEvent()
+        {
+        }
+
+        private void PauseManager_didResumeEvent()
+        {
+        }
+
+        private void ScoreController_scoreDidChangeEvent(int arg1, int arg2)
+        {
+        }
+
+        private void ScoreController_multiplierDidChangeEvent(int arg1, float arg2)
+        {
+        }
+
+        private void BeatmapObjectManager_noteWasDespawnedEvent(NoteController noteController)
+        {
+            if (noteController.noteData.colorType == ColorType.ColorA)
+            {
+                ColorANotes.Remove(noteController.noteTransform);
+            }
+            else if (noteController.noteData.colorType == ColorType.ColorB)
+            {
+                ColorBNotes.Remove(noteController.noteTransform);
+            }
+        }
+
+        private void BeatmapObjectManager_noteWasMissedEvent(NoteController noteController)
+        {
+        }
+
+        private void BeatmapObjectManager_noteWasCutEvent(NoteController noteController, in NoteCutInfo noteCutInfo)
+        {
+        }
+
+        private void BeatmapObjectManager_noteWasSpawnedEvent(NoteController noteController)
+        {
+            if (noteController.noteData.colorType == ColorType.ColorA)
+            {
+                ColorANotes.Add(noteController.noteTransform);
+            }
+            else if (noteController.noteData.colorType == ColorType.ColorB)
+            {
+                ColorBNotes.Add(noteController.noteTransform);
             }
         }
 
@@ -170,11 +376,7 @@ namespace BeatSaberDMX
                 Saber saber = overlappingGameObject.GetComponent<Saber>();
                 if (saber != null)
                 {
-                    segmentColor =
-                        (GameSaberManager.leftSaber == saber)
-                        ? new Color32(255, 0, 0, 255)
-                        : new Color32(0, 0, 255, 255);
-
+                    segmentColor = (GameSaberManager.leftSaber == saber) ? ColorA : ColorB;
                     segmentStart = saber.saberBladeBottomPos;
                     segmentEnd = saber.saberBladeTopPos;
 
@@ -208,8 +410,7 @@ namespace BeatSaberDMX
             Instance = this;
             Plugin.Log?.Debug($"{name}: Awake()");
 
-            SceneManager.sceneLoaded += SceneManager_sceneLoaded;
-            SceneManager.sceneUnloaded += SceneManager_sceneUnloaded;
+            SceneManager.activeSceneChanged += SceneManager_activeSceneChanged;
         }
 
         /// <summary>
@@ -255,8 +456,7 @@ namespace BeatSaberDMX
         /// </summary>
         private void OnDestroy()
         {
-            SceneManager.sceneLoaded -= SceneManager_sceneLoaded;
-            SceneManager.sceneUnloaded -= SceneManager_sceneUnloaded;
+            SceneManager.activeSceneChanged -= SceneManager_activeSceneChanged;
 
             Plugin.Log?.Debug($"{name}: OnDestroy()");
             if (Instance == this)

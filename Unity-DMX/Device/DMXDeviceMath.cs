@@ -36,4 +36,16 @@ public static class DmxDeviceMath
 
         return SqrDistance(point, pb) <= rSqr;
     }
+
+    public static bool IsPointWithinOrientedBox(
+        Vector3 center, Vector3 xAxis, Vector3 yAxis, Vector3 zAxis, Vector3 extents, 
+        Vector3 point)
+    {
+        Vector3 offset = point - center;
+
+        return
+            Mathf.Abs(Vector3.Dot(offset, xAxis)) <= extents.x &&
+            Mathf.Abs(Vector3.Dot(offset, yAxis)) <= extents.y &&
+            Mathf.Abs(Vector3.Dot(offset, zAxis)) <= extents.z;
+    }
 }

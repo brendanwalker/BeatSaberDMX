@@ -117,22 +117,16 @@ public class DmxDeviceInstance : MonoBehaviour
         if (useBroadcast)
         {
             sacnSender = new MulticastSacnSenderIPV4();
+            StartDmxPollingTimers();
         }
         else
         {
-            IPAddress ipAddress = FindFromHostName(remoteIP, 10);
-
-            if (ipAddress != null && ipAddress != IPAddress.None)
-            {
-                sacnSender = new UnicastSacnSender(ipAddress);
-                Plugin.Log?.Info(string.Format("Found sACN host {0}", ipAddress.ToString()));
-            }
-            else
-            {
-                Plugin.Log?.Error($"Failed to find sACN host {remoteIP}");
-            }
+            StartCoroutine(TryStartUnicastSender(StartDmxPollingTimers));
         }
+    }
 
+    private void StartDmxPollingTimers()
+    {
         if (sacnSender != null)
         {
             StartCoroutine(UniverseDiscoveryTimer());
@@ -144,12 +138,12 @@ public class DmxDeviceInstance : MonoBehaviour
 
     public void StopBroadcasting()
     {
+        StopAllCoroutines();
+        sacnSender = null;
+
         if (IsBroadcasting)
         {
             Plugin.Log?.Info($"Halting broadcast to {remoteIP}");
-            StopCoroutine(UniverseDiscoveryTimer());
-            StopCoroutine(PublishDmxDataTimer());
-
             IsBroadcasting = false;
         }
     }
@@ -199,7 +193,7 @@ public class DmxDeviceInstance : MonoBehaviour
 
     private async void SendUniverseDiscoveryPackets()
     {
-        if (universes.Count > 0)
+        if (universes.Count > 0 && sacnSender != null)
         {
             UInt16[] universeIDs = universes.Select(u => (UInt16)u.universeId).ToArray();
 
@@ -216,51 +210,81 @@ public class DmxDeviceInstance : MonoBehaviour
 
     private async void SendDMXData(ushort universe, byte[] dmxData)
     {
-        var packet = packetFactory.CreateDataPacket(universe, dmxData);
+        if (sacnSender != null)
+        {
+            var packet = packetFactory.CreateDataPacket(universe, dmxData);
 
-        if (useBroadcast)
-        {
-            await ((MulticastSacnSenderIPV4)sacnSender).Send(packet);
-        }
-        else
-        {
-            //string data = BitConverter.ToString(dmxData).Replace("-", "");
-            //Debug.Log(string.Format("u:{0}, d:{1}", universe, data));
-            await ((UnicastSacnSender)sacnSender).Send(packet);
+            if (useBroadcast)
+            {
+                await ((MulticastSacnSenderIPV4)sacnSender).Send(packet);
+            }
+            else
+            {
+                //string data = BitConverter.ToString(dmxData).Replace("-", "");
+                //Debug.Log(string.Format("u:{0}, d:{1}", universe, data));
+                await ((UnicastSacnSender)sacnSender).Send(packet);
+            }
         }
     }
 
-    static IPAddress FindFromHostName(string hostname, int maxAttempts)
+    IEnumerator TryStartUnicastSender(Action callback)
+    {
+        while (sacnSender == null)
+        {
+            System.Func<IPAddress> concurrentMethod = FindIPFromRemoteHost;
+            var concurrentResult = concurrentMethod.BeginInvoke(null, null);
+            while (!concurrentResult.IsCompleted)
+            {
+                yield return new WaitForEndOfFrame();
+            }
+            IPAddress ipAddress = concurrentMethod.EndInvoke(concurrentResult);
+
+            if (ipAddress != null && ipAddress != IPAddress.None)
+            {
+                sacnSender = new UnicastSacnSender(ipAddress);
+                Plugin.Log?.Info(string.Format("Found sACN host {0}", ipAddress.ToString()));
+            }
+            else
+            {
+                Plugin.Log?.Error($"Failed to find sACN host {remoteIP}");
+            }
+
+            if (sacnSender == null)
+            {
+                yield return new WaitForSeconds(1.0f);
+            }
+        }
+
+        callback();
+    }
+
+    IPAddress FindIPFromRemoteHost()
     {
         IPAddress address = null;
         bool bHasFound = false;
 
-        for (int attempt=0; attempt < maxAttempts && !bHasFound; ++attempt)
+        try
         {
-            try
-            {
-                if (IPAddress.TryParse(hostname, out address))
-                    return address;
+            if (IPAddress.TryParse(remoteIP, out address))
+                return address;
 
-                var addresses = Dns.GetHostAddresses(hostname);
-                for (var i = 0; i < addresses.Length; i++)
+            var addresses = Dns.GetHostAddresses(remoteIP);
+            for (var i = 0; i < addresses.Length; i++)
+            {
+                if (addresses[i].AddressFamily == AddressFamily.InterNetwork)
                 {
-                    if (addresses[i].AddressFamily == AddressFamily.InterNetwork)
-                    {
-                        address = addresses[i];
-                        break;
-                    }
+                    address = addresses[i];
+                    break;
                 }
+            }
 
-                bHasFound = address != null && address != IPAddress.None;
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogErrorFormat(
-                    "Failed to find IP for :\n host name = {0}\n exception={1}",
-                    hostname, e);
-                System.Threading.Thread.Sleep(1000);
-            }
+            bHasFound = address != null && address != IPAddress.None;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogErrorFormat(
+                "Failed to find IP for :\n host name = {0}\n exception={1}",
+                remoteIP, e);
         }
 
         return address;

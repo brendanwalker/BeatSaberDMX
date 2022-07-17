@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using BeatSaberDMX;
 using BeatSaberDMX.Configuration;
+using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 public class DmxGridLayoutDefinition : DmxLayoutDefinition
@@ -25,10 +27,9 @@ public class DmxGridLayoutDefinition : DmxLayoutDefinition
     public List<DmxDeviceDefinition> Devices { get; set; }
 }
 
-
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
-[RequireComponent(typeof(CapsuleCollider))]
+[RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Rigidbody))]
 public class DmxGridLayoutInstance : DmxLayoutInstance
 {
@@ -43,12 +44,10 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
 
     public DmxDeviceInstance[] Devices { get; private set; }
 
-    private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
-    private CapsuleCollider capsuleCollider;
+    private BoxCollider boxCollider;
 
     private Mesh runtimeMeshData;
-    private Color32[] runtimeColors;
     private byte[] dmxColorData;
 
     private int[] vertexToLEDIndexTable;
@@ -65,7 +64,7 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
         GameObject ownerGameObject = new GameObject(layoutDefinition.Name, componentTypes.ToArray());
         GameObject.DontDestroyOnLoad(ownerGameObject);
 
-        var col = ownerGameObject.GetComponent<CapsuleCollider>();
+        var col = ownerGameObject.GetComponent<BoxCollider>();
         col.isTrigger = true;
 
         var rb = ownerGameObject.GetComponent<Rigidbody>();
@@ -78,7 +77,6 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
         if (shader != null)
         {
             mr.sharedMaterial = new Material(shader);
-
         }
         else
         {
@@ -115,7 +113,7 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
 
     void Awake()
     {
-        capsuleCollider = GetComponent<CapsuleCollider>();
+        boxCollider = GetComponent<BoxCollider>();
         meshFilter = GetComponent<MeshFilter>();
         meshRenderer = GetComponent<MeshRenderer>();
     }
@@ -128,47 +126,88 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
 
     private void OnTriggerEnter(Collider other)
     {
-        HandleColliderOverlap(other.gameObject);
+        ProcessSegmentColliderOverlap(other.gameObject);
     }
 
     private void OnTriggerStay(Collider other)
     {
-        HandleColliderOverlap(other.gameObject);
+        ProcessSegmentColliderOverlap(other.gameObject);
     }
 
-    public void HandleColliderOverlap(GameObject gameObject)
+    private void ProcessNoteProjection(Transform NoteTransform, float NoteSize, Color32 NoteColor)
     {
-        Vector3 worldSegmentStart;
-        Vector3 worldSegmentEnd;
-        Color32 segmentColor;
+        // Get the note position and basis axis
+        Vector3 notePosition = NoteTransform.position;
+        Vector3 noteXAxis = NoteTransform.right;
+        Vector3 noteYAxis = NoteTransform.up;
+        Vector3 noteZAxis = NoteTransform.forward;
 
-        if (BeatSaberDMXController.Instance.GetLedInteractionSegment(
-                    gameObject,
-                    out worldSegmentStart,
-                    out worldSegmentEnd,
-                    out segmentColor))
+        // Get the grid position and basis axis
+        Transform gridChannel= this.gameObject.transform;
+        Vector3 gridCenter = gridChannel.position;
+        Vector3 gridHorizontalAxis = gridChannel.forward; // +Z-axis
+        Vector3 gridVerticalAxis = gridChannel.up; // +Y-axis
+        Vector3 gridNormal = gridChannel.right; // +X-axis
+
+        // Project the note center onto the grid
+        // and compute grid surface 2D coordinates
+        Vector3 noteOffset = notePosition - gridCenter;
+        Vector3 localNotePosOnGrid= Vector3.ProjectOnPlane(noteOffset, gridNormal);        
+        float localNoteHorizPos = Vector3.Dot(localNotePosOnGrid, gridHorizontalAxis);
+        float localNoteVertPos = Vector3.Dot(localNotePosOnGrid, gridVerticalAxis);
+
+        // If the note projection is within the bounds of the grid
+        // do the work of overlapping the note box with the pixel grid
+        float HorizExtents = (PhysicalWidthMeters / 2.0f) + NoteSize;
+        float VertExtents = (PhysicalHightMeters / 2.0f) + NoteSize;
+        if (Mathf.Abs(localNoteHorizPos) <= HorizExtents && Mathf.Abs(localNoteVertPos) <= VertExtents)
         {
-            Vector3 localSegmentStart = this.gameObject.transform.InverseTransformPoint(worldSegmentStart);
-            Vector3 localSegmentEnd = this.gameObject.transform.InverseTransformPoint(worldSegmentEnd);
-            float radius = PluginConfig.Instance.SaberPaintRadius;
+            Vector3 projectedNoteCenter = gridCenter + localNotePosOnGrid; // Note center projected on grid, world space
 
-            for (int vertexIndex = 0; vertexIndex < runtimeColors.Length; ++vertexIndex)
-            {
-                Vector3 vertex = meshFilter.mesh.vertices[vertexIndex];
+            var jobData = new OverlapBoxJob();
+            jobData.boxCenter = gridChannel.InverseTransformPoint(projectedNoteCenter); 
+            jobData.boxXAxis = gridChannel.InverseTransformDirection(noteXAxis);
+            jobData.boxYAxis = gridChannel.InverseTransformDirection(noteYAxis);
+            jobData.boxZAxis = gridChannel.InverseTransformDirection(noteZAxis);
+            jobData.boxExtents = new Vector3(NoteSize, NoteSize, NoteSize);
+            jobData.boxColor= NoteColor;
+            jobData.vertices = new NativeArray<Vector3>(meshFilter.mesh.vertices, Allocator.TempJob);
+            jobData.runtimeColors = new NativeArray<Color32>(runtimeColors, Allocator.TempJob);
 
-                if (DmxDeviceMath.IsPointWithinRadiusOfSegment(localSegmentStart, localSegmentEnd, radius, vertex))
-                {
-                    runtimeColors[vertexIndex].r = Math.Max(runtimeColors[vertexIndex].r, segmentColor.r);
-                    runtimeColors[vertexIndex].g = Math.Max(runtimeColors[vertexIndex].g, segmentColor.g);
-                    runtimeColors[vertexIndex].b = Math.Max(runtimeColors[vertexIndex].r, segmentColor.b);
-                }
-            }
+            var batchSize = 32;
+            var handle = jobData.Schedule(runtimeColors.Length, batchSize);
 
+            handle.Complete();
+
+            jobData.runtimeColors.CopyTo(runtimeColors);
+
+            jobData.vertices.Dispose();
+            jobData.runtimeColors.Dispose();
+        }
+    }
+
+    private void ProjectNotes()
+    {
+        Color32 ColorA = BeatSaberDMXController.Instance.ColorA;
+        Color32 ColorB = BeatSaberDMXController.Instance.ColorB;
+        float NoteSize = PluginConfig.Instance.NotePaintSize;
+
+        foreach (Transform NoteTransform in BeatSaberDMXController.Instance.ColorANotes)
+        {
+            ProcessNoteProjection(NoteTransform, NoteSize, ColorA);
+        }
+
+        foreach (Transform NoteTransform in BeatSaberDMXController.Instance.ColorBNotes)
+        {
+            ProcessNoteProjection(NoteTransform, NoteSize, ColorB);
         }
     }
 
     private void Update()
     {
+        // Project the current active set of notes to the pixel grid
+        ProjectNotes();
+
         //Plugin.Log?.Error($"Pixel Grid update");
         float decayParam = Mathf.Clamp01(PluginConfig.Instance.SaberPaintDecayRate * Time.deltaTime);
 
@@ -293,7 +332,7 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
             for (int j = 0; j < VerticalPixelCount; ++j)
             {
                 float v = (float)j / (float)(VerticalPixelCount - 1);
-                float y = (v - 0.5f) * PhysicalHightMeters;
+                float y = (0.5f - v) * PhysicalHightMeters;
 
                 for (int i = 0; i < HorizontalPixelCount; ++i)
                 {
@@ -309,10 +348,8 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
                 }
             }
 
-            // Create a pill that encapsulated the rectangle
-            capsuleCollider.radius = PhysicalWidthMeters * 0.5f;
-            capsuleCollider.height = PhysicalHightMeters + 2.0f * capsuleCollider.radius;
-            capsuleCollider.direction = 1; // y-axis
+            // Create a box that encapsulates the rectangle
+            boxCollider.size = new Vector3(0.1f, PhysicalHightMeters, PhysicalWidthMeters);
         }
 
         // Create a triangle index array from the grid of vertices

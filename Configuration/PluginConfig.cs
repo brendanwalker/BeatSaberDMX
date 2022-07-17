@@ -11,6 +11,7 @@ namespace BeatSaberDMX.Configuration
         // Must be 'virtual' if you want BSIPA to detect a value change and save the config automatically.
         public virtual float SaberPaintRadius { get; set; } = 0.05f;
         public virtual float SaberPaintDecayRate { get; set; } = 2.0f;
+        public virtual float NotePaintSize { get; set; } = 0.1f;
         public virtual string DMXSceneFilePath { get; set; } = "";
 
         /// <summary>
