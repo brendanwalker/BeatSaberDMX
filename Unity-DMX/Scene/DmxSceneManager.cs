@@ -10,6 +10,7 @@ public class DmxSceneManager : MonoBehaviour
 {
     private static DmxSceneManager _instance = null;
     private DmxSceneInstance _sceneInstance = null;
+    private bool _hasSceneFileChanged = false;
 
     public static DmxSceneManager Instance
     {
@@ -40,8 +41,22 @@ public class DmxSceneManager : MonoBehaviour
         TryUpdateDMXScenePath();
     }
 
+    private void Update()
+    {
+        if (_hasSceneFileChanged)
+        {
+            PatchLoadedDMXScene();
+            _hasSceneFileChanged = false;
+        }
+    }
+
     public void TryUpdateDMXScenePath()
     {
+        if (PluginConfig.Instance == null)
+        {
+            return;
+        }
+
         if (_dmxSceneFilePath != PluginConfig.Instance.DMXSceneFilePath)
         {
             _dmxSceneFilePath = Path.GetFullPath(PluginConfig.Instance.DMXSceneFilePath);
@@ -79,7 +94,7 @@ public class DmxSceneManager : MonoBehaviour
         if (e.FullPath == _dmxSceneFilePath)
         {
             Plugin.Log?.Info(string.Format("Scene File {0} updated", e.FullPath));
-            PatchLoadedDMXScene();
+            _hasSceneFileChanged = true;            
         }
     }
 

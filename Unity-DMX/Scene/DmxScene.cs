@@ -8,6 +8,7 @@ using UnityEngine;
 
 public class DMXSceneDefinition
 {
+    public DmxTransform SceneTransform { get; set; }
     public List<DmxLanternLayoutDefinition> LanternDefinitions { get; set; }
     public List<DmxGridLayoutDefinition> GridDefinitions { get; set; }
 
@@ -56,6 +57,7 @@ public class DMXSceneDefinition
 public class DmxSceneInstance
 {
     private Transform _gameOrigin = null;
+    private GameObject _sceneOrigin = null;
     private Dictionary<string, DmxLayoutDefinition> _layoutDefinitions = new Dictionary<string, DmxLayoutDefinition>();
     private Dictionary<string, DmxLayoutInstance> _layoutInstances = new Dictionary<string, DmxLayoutInstance>();
 
@@ -65,11 +67,29 @@ public class DmxSceneInstance
 
         RebuildLayoutDefinitions(sceneDefinition);
 
+        // Create a scene root to attach all instances to
+        _sceneOrigin = new GameObject("DmxSceneRoot");
+        _sceneOrigin.transform.parent = gameOrigin;
+        SetDMXTransform(sceneDefinition.SceneTransform);
+
         // Create an instance for each definition
         foreach (DmxLayoutDefinition layoutDefinition in _layoutDefinitions.Values)
         {
             SpawnLayoutInstance(layoutDefinition);
         }
+    }
+
+    public void SetDMXTransform(DmxTransform transform)
+    {
+        _sceneOrigin.transform.localPosition =
+            new Vector3(
+                transform.XPosMeters,
+                transform.YPosMeters,
+                transform.ZPosMeters);
+        _sceneOrigin.transform.localRotation =
+            Quaternion.AngleAxis(
+                transform.YRotationAngle,
+                Vector3.up);
     }
 
     private void RebuildLayoutDefinitions(DMXSceneDefinition sceneDefinition)
@@ -90,6 +110,8 @@ public class DmxSceneInstance
     public void Patch(DMXSceneDefinition sceneDefinition)
     {
         RebuildLayoutDefinitions(sceneDefinition);
+
+        SetDMXTransform(sceneDefinition.SceneTransform);
 
         foreach (DmxLayoutDefinition layoutDefinition in _layoutDefinitions.Values)
         {
@@ -126,6 +148,9 @@ public class DmxSceneInstance
         }
         _layoutInstances.Clear();
         _layoutDefinitions.Clear();
+
+        GameObject.Destroy(_sceneOrigin);
+        _sceneOrigin = null;
     }
 
     void SpawnLayoutInstance(DmxLayoutDefinition definition)
@@ -140,11 +165,11 @@ public class DmxSceneInstance
 
         if (definition is DmxLanternLayoutDefinition)
         {
-            instance = DmxLanternLayoutInstance.SpawnInstance((DmxLanternLayoutDefinition)definition, _gameOrigin);
+            instance = DmxLanternLayoutInstance.SpawnInstance((DmxLanternLayoutDefinition)definition, _sceneOrigin.transform);
         }
         else if (definition is DmxGridLayoutDefinition)
         {
-            instance = DmxGridLayoutInstance.SpawnInstance((DmxGridLayoutDefinition)definition, _gameOrigin);
+            instance = DmxGridLayoutInstance.SpawnInstance((DmxGridLayoutDefinition)definition, _sceneOrigin.transform);
         }
 
         if (instance != null)

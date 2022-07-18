@@ -52,7 +52,6 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
                 typeof(DmxLanternLayoutInstance), 
                 typeof(DmxDeviceInstance) }
             );
-        GameObject.DontDestroyOnLoad(ownerGameObject);
 
         var col = ownerGameObject.GetComponent<CapsuleCollider>();
         col.isTrigger = true;

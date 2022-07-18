@@ -62,7 +62,6 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
         }
 
         GameObject ownerGameObject = new GameObject(layoutDefinition.Name, componentTypes.ToArray());
-        GameObject.DontDestroyOnLoad(ownerGameObject);
 
         var col = ownerGameObject.GetComponent<BoxCollider>();
         col.isTrigger = true;
