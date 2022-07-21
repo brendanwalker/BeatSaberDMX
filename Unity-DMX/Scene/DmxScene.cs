@@ -8,6 +8,7 @@ using UnityEngine;
 
 public class DMXSceneDefinition
 {
+    public bool IsVisible { get; set; }
     public DmxTransform SceneTransform { get; set; }
     public List<DmxLanternLayoutDefinition> LanternDefinitions { get; set; }
     public List<DmxGridLayoutDefinition> GridDefinitions { get; set; }
@@ -56,6 +57,7 @@ public class DMXSceneDefinition
 
 public class DmxSceneInstance
 {
+    private bool _isVisible = true;
     private Transform _gameOrigin = null;
     private GameObject _sceneOrigin = null;
     private Dictionary<string, DmxLayoutDefinition> _layoutDefinitions = new Dictionary<string, DmxLayoutDefinition>();
@@ -77,6 +79,20 @@ public class DmxSceneInstance
         {
             SpawnLayoutInstance(layoutDefinition);
         }
+
+        // Update scene visibility after everything is spawned
+        SetSceneVisibility(sceneDefinition.IsVisible);            
+    }
+
+    public void SetSceneVisibility(bool bNewIsVisible)
+    {
+        Renderer[] renderers = _sceneOrigin.GetComponentsInChildren<Renderer>();
+        foreach (Renderer childRenderer in renderers)
+        {
+            childRenderer.enabled = bNewIsVisible;
+        }
+
+        _isVisible = bNewIsVisible;
     }
 
     public void SetDMXTransform(DmxTransform transform)
@@ -137,6 +153,9 @@ public class DmxSceneInstance
                 DespawnLayoutInstance(_layoutInstances[instanceName]);
             }
         }
+
+        // Update scene visibility after everything is spawned / despawned
+        SetSceneVisibility(sceneDefinition.IsVisible);
     }
 
     public void Dispose()
