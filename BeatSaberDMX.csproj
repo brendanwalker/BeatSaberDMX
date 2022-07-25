@@ -163,12 +163,12 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy /y "$(TargetDir)Kadmium-sACN.dll"  "$(BeatSaberDir)\Plugins\"
-xcopy /y "$(TargetDir)Kadmium-Udp.dll"  "$(BeatSaberDir)\Plugins\"
-xcopy /y "$(TargetDir)System.Buffers.dll"  "$(BeatSaberDir)\Plugins\"
-xcopy /y "$(TargetDir)System.Memory.dll"  "$(BeatSaberDir)\Plugins\"
-xcopy /y "$(TargetDir)System.Runtime.CompilerServices.Unsafe.dll"  "$(BeatSaberDir)\Plugins\"
-xcopy /y "$(TargetDir)Mikan_CAPI.dll"  "$(BeatSaberDir)\Plugins\"
-xcopy /y "$(TargetDir)SpoutLibrary.dll"  "$(BeatSaberDir)\Plugins\"</PostBuildEvent>
+    <PostBuildEvent>xcopy /y "$(TargetDir)Kadmium-sACN.dll"  "$(GameDirectory)\Plugins\"
+xcopy /y "$(TargetDir)Kadmium-Udp.dll"  "$(GameDirectory)\Plugins\"
+xcopy /y "$(TargetDir)System.Buffers.dll"  "$(GameDirectory)\Plugins\"
+xcopy /y "$(TargetDir)System.Memory.dll"  "$(GameDirectory)\Plugins\"
+xcopy /y "$(TargetDir)System.Runtime.CompilerServices.Unsafe.dll"  "$(GameDirectory)\Plugins\"
+xcopy /y "$(TargetDir)Mikan_CAPI.dll"  "$(GameDirectory)\Beat Saber_Data\Plugins\x86_64\"
+xcopy /y "$(TargetDir)SpoutLibrary.dll"  "$(GameDirectory)\Beat Saber_Data\Plugins\x86_64\"</PostBuildEvent>
   </PropertyGroup>
 </Project>
