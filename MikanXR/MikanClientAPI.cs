@@ -4,6 +4,10 @@ using System.Runtime.InteropServices;
 using System;
 using System.Text;
 
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+#define LOAD_DLL_MANUALLY
+#endif // UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+
 namespace MikanXR.SDK.Unity
 {
     /// The ID of a VR Device
@@ -548,8 +552,7 @@ namespace MikanXR.SDK.Unity
 
     public class MikanClientAPI
     {
-
-//#if (UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN) && UNITY_64
+        //#if (UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN) && UNITY_64
         [DllImport("Mikan_CAPI", CharSet = CharSet.Ansi)]
         public static extern MikanResult Mikan_Initialize(
             MikanLogLevel log_level,

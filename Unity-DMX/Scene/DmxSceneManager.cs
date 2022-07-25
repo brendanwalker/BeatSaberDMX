@@ -93,7 +93,7 @@ public class DmxSceneManager : MonoBehaviour
 
         if (e.FullPath == _dmxSceneFilePath)
         {
-            Plugin.Log?.Info(string.Format("Scene File {0} updated", e.FullPath));
+            Plugin.Log?.Info(string.Format("DMXSceneManager: Scene File {0} updated", e.FullPath));
             _hasSceneFileChanged = true;            
         }
     }

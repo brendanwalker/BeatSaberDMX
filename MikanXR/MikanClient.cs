@@ -28,10 +28,6 @@ namespace MikanXR.SDK.Unity
     [AddComponentMenu("MikanXR/Mikan")]
     public class MikanClient : MonoBehaviour
     {
-        private static String GameSceneName = "StandardGameplay";
-        private static String MenuSceneName = "MainMenu";
-        private List<string> _loadedSceneNames = new List<string>();
-
         private static MikanClient _instance = null;
 
         private MikanClientInfo _clientInfo;
@@ -45,7 +41,6 @@ namespace MikanXR.SDK.Unity
         private float _mikanReconnectTimeout = 0.0f;
         private ulong _lastReceivedVideoSourceFrame = 0;
         private ulong _lastRenderedFrame = 0;
-        private int _loadedSceneCounter = 0;
 
         public UnityEvent _connectEvent = new UnityEvent();
         public UnityEvent ConnectEvent
@@ -79,25 +74,37 @@ namespace MikanXR.SDK.Unity
             //   and destroy any that are created while one already exists.
             if (_instance != null)
             {
-                Plugin.Log?.Warn($"Mikan: Instance of {GetType().Name} already exists, destroying.");
+                Plugin.Log?.Warn($"MikanClient: Instance of {GetType().Name} already exists, destroying.");
                 GameObject.DestroyImmediate(this);
                 return;
             }
 
             GameObject.DontDestroyOnLoad(this); // Don't destroy this object on scene changes
             _instance = this;
-            Plugin.Log?.Debug($"Mikan: {name}: Awake()");
-
-            SceneManager.sceneLoaded += SceneManager_sceneLoaded;
-            SceneManager.sceneUnloaded += SceneManager_sceneUnloaded;
+            Plugin.Log?.Debug($"MikanClient: {name}: Awake()");
         }
 
         void OnEnable()
         {
+            InitializeMikan();
+        }
+
+        void OnDisable()
+        {
+            ShutdownMikan();
+        }
+
+        public void OnApplicationQuit()
+        {
+            ShutdownMikan();
+        }
+
+        private void InitializeMikan()
+        {
             _apiInitialized = false;
 
             MikanClientGraphicsAPI graphicsAPI = MikanClientGraphicsAPI.UNKNOWN;
-            switch(SystemInfo.graphicsDeviceType)
+            switch (SystemInfo.graphicsDeviceType)
             {
                 case GraphicsDeviceType.Direct3D11:
                     graphicsAPI = MikanClientGraphicsAPI.Direct3D11;
@@ -123,14 +130,14 @@ namespace MikanXR.SDK.Unity
                 mikanSdkVersion = SDKConstants.SDK_VERSION,
             };
 
-            MikanResult result= MikanClientAPI.Mikan_Initialize(MikanLogLevel.Info, "UnityClient.log");
+            MikanResult result = MikanClientAPI.Mikan_Initialize(MikanLogLevel.Info, "UnityClient.log");
             if (result == MikanResult.Success)
             {
                 _apiInitialized = true;
             }
         }
 
-        void OnDisable()
+        private void ShutdownMikan()
         {
             if (_apiInitialized)
             {
@@ -145,126 +152,55 @@ namespace MikanXR.SDK.Unity
             }
         }
 
-        private void SceneManager_sceneLoaded(Scene loadedScene, LoadSceneMode loadSceneMode)
-        {
-            Plugin.Log?.Info($"Mikan: New Scene Loaded: {loadedScene.name}");
-
-            if (_loadedSceneNames.Count == 0)
-            {
-                SpawnMikanCamera();
-            }
-
-            _loadedSceneNames.Add(loadedScene.name);
-            UpdateCameraAttachment();
-        }
-
-        private void SceneManager_sceneUnloaded(Scene unloadedScene)
-        {
-            Plugin.Log?.Info($"Mikan: Unloading scene {unloadedScene.name}");
-
-            _loadedSceneNames.Remove(unloadedScene.name);
-            if (_loadedSceneNames.Count == 0)
-            {
-                DespawnMikanCamera();
-            }
-            else
-            {
-                UpdateCameraAttachment();
-            }
-        }
-
-        private void UpdateCameraAttachment()
+        public void SpawnMikanCamera(Transform cameraOrigin)
         {
             if (_MRCamera == null)
             {
-                return;
-            }
+                Plugin.Log?.Info($"MikanClient: Spawning Mikan camera");
 
-            // Find the camera origin based on the scene taht
-            Transform CameraOrigin = null;
-            
-            if (_loadedSceneNames.Contains(GameSceneName))
-            {
-                Scene gameScene= SceneManager.GetSceneByName(GameSceneName);
+                GameObject cameraGameObject = new GameObject(
+                    "MikanCamera",
+                    new System.Type[] { typeof(Camera) });
+                _MRCamera = cameraGameObject.GetComponent<Camera>();
+                _MRCamera.stereoTargetEye = StereoTargetEyeMask.None;
+                _MRCamera.backgroundColor = Color.gray;
+                _MRCamera.clearFlags = CameraClearFlags.SolidColor;
+                _MRCamera.forceIntoRenderTexture = true;
 
-                //Plugin.Log?.Warn("[Scene Game Objects]");
-                //PluginUtils.PrintObjectTreeInScene(gameScene);
-
-                GameObject localPlayerGameCore = PluginUtils.FindGameObjectRecursiveInScene(gameScene, "LocalPlayerGameCore");
-                //PluginUtils.PrintComponents(localPlayerGameCore);
-                if (localPlayerGameCore != null)
+                if (cameraOrigin != null)
                 {
-                    CameraOrigin = localPlayerGameCore.transform.Find("Origin");
-                    //PluginUtils.PrintComponents(GameOrigin?.gameObject);
-                    if (CameraOrigin == null)
-                    {
-                        Plugin.Log?.Warn("Failed to find Origin transform!");
-                    }
+                    _MRCamera.transform.parent = cameraOrigin;
+                    Plugin.Log?.Warn("MikanClient: Attaching Mikan camera origin to " + cameraOrigin.name);
+                }
+
+                if (_renderTexture != null)
+                {
+                    _MRCamera.targetTexture = _renderTexture;
                 }
                 else
                 {
-                    Plugin.Log?.Warn("Failed to find LocalPlayerGameCore game object!");
+                    createFrameBuffer(256, 256);
                 }
+
+                updateCameraProjectionMatrix();
             }
-            
-            if (CameraOrigin == null && _loadedSceneNames.Contains(MenuSceneName))
+            else
             {
-                Scene menuScene = SceneManager.GetSceneByName(MenuSceneName);
-
-                //Plugin.Log?.Warn("[Scene Game Objects]");
-                //PluginUtils.PrintObjectTreeInScene(loadedScene);
-
-                GameObject menuCore = PluginUtils.FindGameObjectRecursiveInScene(menuScene, "MenuCore");
-                //PluginUtils.PrintComponents(menuCore);
-                if (menuCore != null)
-                {
-                    CameraOrigin = menuCore.transform.Find("Origin");
-                    //PluginUtils.PrintComponents(GameOrigin?.gameObject);
-                    if (CameraOrigin == null)
-                    {
-                        Plugin.Log?.Warn("Failed to find Origin transform!");
-                    }
-                }
-                else
-                {
-                    Plugin.Log?.Warn("Failed to find MenuCore game object!");
-                }
-            }
-
-            if (CameraOrigin != null)
-            {
-                _MRCamera.transform.parent = CameraOrigin;
-                Plugin.Log?.Warn("Updating camera origin to "+ CameraOrigin.name);
+                Plugin.Log?.Info($"MikanClient: Ignoring camera spawn request. Already spawned.");
             }
         }
 
-        void SpawnMikanCamera()
-        {
-            Plugin.Log?.Info("Mikan: Created Mikan Camera");
-            GameObject cameraGameObject = new GameObject(
-                "MikanCamera",
-                new System.Type[] { typeof(Camera) });
-            _MRCamera = cameraGameObject.GetComponent<Camera>();
-            _MRCamera.stereoTargetEye = StereoTargetEyeMask.None;
-            _MRCamera.backgroundColor = Color.gray; 
-            _MRCamera.clearFlags = CameraClearFlags.SolidColor;
-            _MRCamera.forceIntoRenderTexture = true;
-
-            if (_renderTexture != null)
-            {
-                _MRCamera.targetTexture = _renderTexture;
-            }
-
-            updateCameraProjectionMatrix();
-        }
-
-        void DespawnMikanCamera()
+        public void DespawnMikanCamera()
         {
             if (_MRCamera != null)
             {
-                Plugin.Log?.Info("Mikan: Destroyed Mikan Camera");
+                Plugin.Log?.Info($"MikanClient: Despawn Mikan camera");
                 Destroy(_MRCamera.gameObject);
                 _MRCamera = null;
+            }
+            else
+            {
+                Plugin.Log?.Info($"MikanClient: Ignoring camera de-spawn request. Already despawned.");
             }
         }
 
@@ -408,7 +344,7 @@ namespace MikanXR.SDK.Unity
             _MRCamera.transform.localRotation = Quaternion.LookRotation(cameraForward, cameraUp);
             _MRCamera.transform.localPosition = cameraPosition;
 
-            //Plugin.Log?.Error($"Mikan: New camera position {cameraPosition.x},{cameraPosition.y},{cameraPosition.z}");
+            //Plugin.Log?.Error($"MikanClient: New camera position {cameraPosition.x},{cameraPosition.y},{cameraPosition.z}");
         }
 
         void reallocateRenderBuffers()
@@ -435,7 +371,7 @@ namespace MikanXR.SDK.Unity
 				
                 if (MikanClientAPI.Mikan_AllocateRenderTargetBuffers(desc, out _renderTargetMemory) != MikanResult.Success)
                 {
-                    Plugin.Log?.Error("Mikan: Failed to allocate render target buffers");
+                    Plugin.Log?.Error("MikanClient: Failed to allocate render target buffers");
                 }
 
                 createFrameBuffer(mode.resolution_x, mode.resolution_y);
@@ -443,7 +379,7 @@ namespace MikanXR.SDK.Unity
             }
             else
             {
-                Plugin.Log?.Error("Mikan: Failed to get video source mode");
+                Plugin.Log?.Error("MikanClient: Failed to get video source mode");
             }
         }
 
@@ -453,7 +389,7 @@ namespace MikanXR.SDK.Unity
 
             if (width <= 0 || height <= 0)
             {
-                Plugin.Log?.Error("Mikan: Unable to create render texture. Texture dimension must be higher than zero.");
+                Plugin.Log?.Error("MikanClient: Unable to create render texture. Texture dimension must be higher than zero.");
                 return false;
             }
 
@@ -468,7 +404,7 @@ namespace MikanXR.SDK.Unity
 
             if (!_renderTexture.Create())
             {
-                Plugin.Log?.Error("Mikan: Unable to create render texture.");
+                Plugin.Log?.Error("MikanClient: Unable to create render texture.");
                 return false;
             }
 
@@ -477,7 +413,7 @@ namespace MikanXR.SDK.Unity
                 _MRCamera.targetTexture = _renderTexture;
             }
 
-            Plugin.Log?.Info($"Mikan: Created {width}x{height} render target texture");
+            Plugin.Log?.Info($"MikanClient: Created {width}x{height} render target texture");
 
             return bSuccess;
         }
@@ -516,7 +452,7 @@ namespace MikanXR.SDK.Unity
                         _MRCamera.nearClipPlane = (float)monoIntrinsics.znear;
                         _MRCamera.farClipPlane = (float)monoIntrinsics.zfar;
 
-                        Plugin.Log?.Info($"Mikan: Updated camera params: fov:{_MRCamera.fieldOfView}, aspect:{_MRCamera.aspect}, near:{_MRCamera.nearClipPlane}, far:{_MRCamera.farClipPlane}");
+                        Plugin.Log?.Info($"MikanClient: Updated camera params: fov:{_MRCamera.fieldOfView}, aspect:{_MRCamera.aspect}, near:{_MRCamera.nearClipPlane}, far:{_MRCamera.farClipPlane}");
                     }
                 }
             }

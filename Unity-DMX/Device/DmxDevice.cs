@@ -42,8 +42,8 @@ public class DmxDeviceInstance : MonoBehaviour
 
     private void OnDestroy()
     {
-        Plugin.Log?.Error($"DMXController getting destroyed");
-        Plugin.Log?.Error(UnityEngine.StackTraceUtility.ExtractStackTrace());
+        Plugin.Log?.Info($"DmxDeviceInstance: DMXController getting destroyed");
+        Plugin.Log?.Info(UnityEngine.StackTraceUtility.ExtractStackTrace());
 
         StopBroadcasting();
     }
@@ -143,7 +143,7 @@ public class DmxDeviceInstance : MonoBehaviour
 
         if (IsBroadcasting)
         {
-            Plugin.Log?.Info($"Halting broadcast to {remoteIP}");
+            Plugin.Log?.Info($"DmxDeviceInstance: Halting broadcast to {remoteIP}");
             IsBroadcasting = false;
         }
     }
@@ -242,11 +242,11 @@ public class DmxDeviceInstance : MonoBehaviour
             if (ipAddress != null && ipAddress != IPAddress.None)
             {
                 sacnSender = new UnicastSacnSender(ipAddress);
-                Plugin.Log?.Info(string.Format("Found sACN host {0}", ipAddress.ToString()));
+                Plugin.Log?.Info(string.Format("DmxDeviceInstance: Found sACN host {0}", ipAddress.ToString()));
             }
             else
             {
-                Plugin.Log?.Error($"Failed to find sACN host {remoteIP}");
+                Plugin.Log?.Error($"DmxDeviceInstance: Failed to find sACN host {remoteIP}");
             }
 
             if (sacnSender == null)

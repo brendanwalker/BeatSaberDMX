@@ -70,7 +70,7 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
         }
         else
         {
-            Plugin.Log?.Error($"Failed to find '{shaderName}' shader");
+            Plugin.Log?.Error($"DmxLanternLayoutInstance: Failed to find '{shaderName}' shader");
         }
 
         DmxLanternLayoutInstance instance = ownerGameObject.GetComponent<DmxLanternLayoutInstance>();
@@ -100,7 +100,7 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
 
     void OnDestroy()
     {
-        Plugin.Log?.Error($"DMXPixelGrid getting destroyed");
+        Plugin.Log?.Info($"DmxLanternLayoutInstance: DMXPixelGrid getting destroyed");
         //Plugin.Log?.Error(UnityEngine.StackTraceUtility.ExtractStackTrace());
     }
 

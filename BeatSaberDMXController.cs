@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MikanXR.SDK.Unity;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -37,19 +38,20 @@ namespace BeatSaberDMX
         public Color ColorA = Color.red;
         public Color ColorB = Color.blue;
 
-        private void SceneManager_activeSceneChanged(Scene currentScene, Scene nextScene)
+        private void SceneManager_activeSceneChanged(Scene oldScene, Scene newScene)
         {           
             try
             {
-                Plugin.Log?.Info($"Unloading scene {currentScene.name}");
+                Plugin.Log?.Info($"BeatSaberDMXController: Active scene changed: {oldScene.name} -> {newScene.name}");
 
-                if (currentScene.name == GameSceneName || currentScene.name == MenuSceneName)
+                if (oldScene.name == GameSceneName || oldScene.name == MenuSceneName)
                 {
+                    MikanClient.Instance.DespawnMikanCamera();
                     DespawnDMXScene();
                     UnbindSceneComponents();
                 }
 
-                if (nextScene.name == GameSceneName)
+                if (newScene.name == GameSceneName)
                 {
                     //InvokeAll(gameSceneActive);
 
@@ -61,7 +63,7 @@ namespace BeatSaberDMX
                         gameScenesManager.transitionDidFinishEvent += GameSceneLoadedCallback;
                     }
                 }
-                else if (nextScene.name == MenuSceneName)
+                else if (newScene.name == MenuSceneName)
                 {
                     gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
 
@@ -70,7 +72,7 @@ namespace BeatSaberDMX
                     if (gameScenesManager != null)
                     {
 
-                        if (currentScene.name == EmptyTransitionSceneName && !lastMainSceneWasNotMenu)
+                        if (oldScene.name == EmptyTransitionSceneName && !lastMainSceneWasNotMenu)
                         {
                             //     Utilities.Logger.log.Info("Fresh");
 
@@ -87,7 +89,7 @@ namespace BeatSaberDMX
                     lastMainSceneWasNotMenu = false;
                 }
 
-                if (MainSceneNames.Contains(nextScene.name))
+                if (MainSceneNames.Contains(newScene.name))
                 {
                     lastMainSceneWasNotMenu = true;
                 }
@@ -123,7 +125,11 @@ namespace BeatSaberDMX
             //InvokeAll(menuSceneLoadedFresh);
             //InvokeAll(lateMenuSceneLoadedFresh, transitionSetupData)
 
-            BindGameSceneComponents(SceneManager.GetSceneByName(MenuSceneName));
+            if (BindMenuSceneComponents())
+            {
+                // Spawn the Mikan camera and attach to the GameOrigin
+                MikanClient.Instance.SpawnMikanCamera(GameOrigin);
+            }
         }
 
         private void GameSceneLoadedCallback(ScenesTransitionSetupDataSO transitionSetupData, DiContainer diContainer)
@@ -176,14 +182,12 @@ namespace BeatSaberDMX
                 transitionSetup.didFinishEvent += TransitionSetup_didFinishEvent;
             }
 
-            Scene loadedScene = SceneManager.GetSceneByName(GameSceneName);
-            //Plugin.Log?.Warn("[Scene Game Objects]");
-            //PluginUtils.PrintObjectTreeInScene(loadedScene);
-            Plugin.Log?.Info("Binding Devices...");
-            if (BindGameSceneComponents(loadedScene))
-            {
-                Plugin.Log?.Info("Spawning DMX Game Objects...");
+            if (BindGameSceneComponents())
+            {                
                 SpawnDMXScene();
+
+                // Spawn the Mikan camera and attach to the GameOrigin
+                MikanClient.Instance.SpawnMikanCamera(GameOrigin);
             }
         }
 
@@ -259,13 +263,15 @@ namespace BeatSaberDMX
             }
         }
 
-        bool BindGameSceneComponents(Scene loadedScene)
+        bool BindGameSceneComponents()
         {
-            GameObject localPlayerGameCore = PluginUtils.FindGameObjectRecursiveInScene(loadedScene, "LocalPlayerGameCore");
+            Plugin.Log?.Info("BeatSaberDMXController: Binding Game Scene Components");
+
+            GameObject localPlayerGameCore = GameObject.Find("LocalPlayerGameCore");
             //PluginUtils.PrintComponents(localPlayerGameCore);
             if (localPlayerGameCore == null)
             {
-                Plugin.Log?.Warn("Failed to find LocalPlayerGameCore game object, bailing!");
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find LocalPlayerGameCore game object, bailing!");
                 return false;
             }
 
@@ -273,7 +279,7 @@ namespace BeatSaberDMX
             //PluginUtils.PrintComponents(GameOrigin?.gameObject);
             if (GameOrigin == null)
             {
-                Plugin.Log?.Warn("Failed to find Origin transform, bailing!");
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find Origin transform, bailing!");
                 return false;
             }
 
@@ -281,24 +287,27 @@ namespace BeatSaberDMX
             //PluginUtils.PrintComponents(vrGameCoreTransform);
             if (vrGameCore == null)
             {
-                Plugin.Log?.Warn("Failed to find VRGameCore game object, bailing!");
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find VRGameCore game object, bailing!");
                 return false;
             }
 
             // Fetch the game saber manager to get the left and right sabers
             GameSaberManager = vrGameCore.GetComponent<SaberManager>();
 
-            Plugin.Log?.Info("Successfully bound game components!");
             return true;
         }
 
-        bool BindMenuSceneComponents(Scene loadedScene)
+        bool BindMenuSceneComponents()
         {
-            GameObject menuCore = PluginUtils.FindGameObjectRecursiveInScene(loadedScene, "MenuCore");
+            Plugin.Log?.Info("BeatSaberDMXController: Binding Menu Scene Components");
+
+            GameObject menuCore = GameObject.Find("MenuCore");
+            //GameObject menuCore = PluginUtils.FindGameObjectRecursiveInScene(loadedScene, "MenuCore");
+
             //PluginUtils.PrintComponents(menuCore);
             if (menuCore == null)
             {
-                Plugin.Log?.Warn("Failed to find MenuCore game object, bailing!");
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find MenuCore game object, bailing!");
                 return false;
             }
 
@@ -306,7 +315,7 @@ namespace BeatSaberDMX
             //PluginUtils.PrintComponents(GameOrigin?.gameObject);
             if (GameOrigin == null)
             {
-                Plugin.Log?.Warn("Failed to find Origin transform, bailing!");
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find Origin transform, bailing!");
                 return false;
             }
 
@@ -314,7 +323,7 @@ namespace BeatSaberDMX
             //PluginUtils.PrintComponents(menuControllers);
             if (menuControllers == null)
             {
-                Plugin.Log?.Warn("Failed to find MenuControllers game object, bailing!");
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find MenuControllers game object, bailing!");
                 return false;
             }
 
@@ -322,7 +331,7 @@ namespace BeatSaberDMX
             //PluginUtils.PrintComponents(controllerLeft);
             if (controllerLeft == null)
             {
-                Plugin.Log?.Warn("Failed to find ControllerLeft game object, bailing!");
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find ControllerLeft game object, bailing!");
                 return false;
             }
 
@@ -330,14 +339,13 @@ namespace BeatSaberDMX
             //PluginUtils.PrintComponents(controllerRight);
             if (controllerRight == null)
             {
-                Plugin.Log?.Warn("Failed to find ControllerRight game object, bailing!");
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find ControllerRight game object, bailing!");
                 return false;
             }
 
             LeftVRController = controllerLeft.GetComponent<VRController>();
             RightVRController = controllerRight.GetComponent<VRController>();
 
-            Plugin.Log?.Info("Successfully bound menu components!");
             return true;
         }
 
@@ -351,13 +359,13 @@ namespace BeatSaberDMX
 
         void SpawnDMXScene()
         {
-            Plugin.Log?.Warn("[Loading DMX Scene]");
+            Plugin.Log?.Info("BeatSaberDMXController: Loading DMX Scene");
             DmxSceneManager.Instance.LoadDMXScene(GameOrigin);
         }
 
         void DespawnDMXScene()
         {
-            Plugin.Log?.Warn("[Unloading DMX Scene]");
+            Plugin.Log?.Info("BeatSaberDMXController: Unloading DMX Scene");
             DmxSceneManager.Instance.UnloadDMXScene();
         }
 
@@ -401,14 +409,14 @@ namespace BeatSaberDMX
             //   and destroy any that are created while one already exists.
             if (Instance != null)
             {
-                Plugin.Log?.Warn($"Instance of {GetType().Name} already exists, destroying.");
+                Plugin.Log?.Warn($"BeatSaberDMXController: Instance of {GetType().Name} already exists, destroying.");
                 GameObject.DestroyImmediate(this);
                 return;
             }
             
             GameObject.DontDestroyOnLoad(this); // Don't destroy this object on scene changes
             Instance = this;
-            Plugin.Log?.Debug($"{name}: Awake()");
+            //Plugin.Log?.Debug($"{name}: Awake()");
 
             SceneManager.activeSceneChanged += SceneManager_activeSceneChanged;
         }
@@ -458,7 +466,7 @@ namespace BeatSaberDMX
         {
             SceneManager.activeSceneChanged -= SceneManager_activeSceneChanged;
 
-            Plugin.Log?.Debug($"{name}: OnDestroy()");
+            //Plugin.Log?.Debug($"BeatSaberDMXController: {name}: OnDestroy()");
             if (Instance == this)
                 Instance = null; // This MonoBehaviour is being destroyed, so set the static instance property to null.
 

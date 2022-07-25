@@ -27,7 +27,7 @@ public class DMXSceneDefinition
         }
         catch (Exception e)
         {
-            Plugin.Log?.Error($"Failed to load/parse scene {scenePath}: {e.Message}");
+            Plugin.Log?.Error($"DMXSceneDefinition: Failed to load/parse scene {scenePath}: {e.Message}");
         }
 
         return sceneDefinition;
@@ -48,7 +48,7 @@ public class DMXSceneDefinition
         }
         catch (Exception e)
         {
-            Plugin.Log?.Error($"Failed to save scene {scenePath}: {e.Message}");
+            Plugin.Log?.Error($"DMXSceneDefinition: Failed to save scene {scenePath}: {e.Message}");
         }
 
         return bSuccess;
@@ -162,7 +162,7 @@ public class DmxSceneInstance
     {
         foreach (DmxLanternLayoutInstance instance in _layoutInstances.Values)
         {
-            Plugin.Log?.Info($"Despawned DMX instance {instance.gameObject}");
+            Plugin.Log?.Info($"DmxSceneInstance: Despawned DMX instance {instance.gameObject}");
             GameObject.Destroy(instance.gameObject);
         }
         _layoutInstances.Clear();
@@ -176,7 +176,7 @@ public class DmxSceneInstance
     {
         if (_layoutInstances.ContainsKey(definition.Name))
         {
-            Plugin.Log?.Info($"Failed to spawn instance for {definition.Name}, already exists!");
+            Plugin.Log?.Info($"DmxSceneInstance: Failed to spawn instance for {definition.Name}, already exists!");
             return;
         }
 
@@ -193,14 +193,14 @@ public class DmxSceneInstance
 
         if (instance != null)
         {
-            Plugin.Log?.Info($"Spawned instance for {definition.Name}");
+            Plugin.Log?.Info($"DmxSceneInstance: Spawned instance for {definition.Name}");
             _layoutInstances.Add(definition.Name, instance);
         }
     }
 
     void DespawnLayoutInstance(DmxLayoutInstance instance)
     {
-        Plugin.Log?.Info($"Despawned Lantern {instance.gameObject.name}");
+        Plugin.Log?.Info($"DmxSceneInstance: Despawned Lantern {instance.gameObject.name}");
         _layoutInstances.Remove(instance.gameObject.name);
         GameObject.Destroy(instance.gameObject);
     }
