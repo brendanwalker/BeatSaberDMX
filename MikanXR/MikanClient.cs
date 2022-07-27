@@ -163,7 +163,7 @@ namespace MikanXR.SDK.Unity
                     new System.Type[] { typeof(Camera) });
                 _MRCamera = cameraGameObject.GetComponent<Camera>();
                 _MRCamera.stereoTargetEye = StereoTargetEyeMask.None;
-                _MRCamera.backgroundColor = Color.gray;
+                _MRCamera.backgroundColor = new Color(0, 0, 0, 0);
                 _MRCamera.clearFlags = CameraClearFlags.SolidColor;
                 _MRCamera.forceIntoRenderTexture = true;
 

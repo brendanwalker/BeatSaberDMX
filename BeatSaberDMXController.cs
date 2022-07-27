@@ -1,4 +1,5 @@
-﻿using MikanXR.SDK.Unity;
+﻿using CustomAvatar;
+using MikanXR.SDK.Unity;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -23,6 +24,9 @@ namespace BeatSaberDMX
         public static readonly string BeatmapEditorSceneName = "BeatmapEditor";
         readonly string[] MainSceneNames = { GameSceneName, CreditsSceneName, BeatmapEditorSceneName };
 
+        public static readonly string GlowShaderName = "BeatSaber/Unlit Glow";
+        public static readonly string GlowPropertyName = "_Glow";
+
         private bool lastMainSceneWasNotMenu = false;
 
         private GameScenesManager gameScenesManager = null;
@@ -32,6 +36,7 @@ namespace BeatSaberDMX
         public Transform GameOrigin { get; private set; }
         public VRController LeftVRController { get; private set; }
         public VRController RightVRController { get; private set; }
+        public VRIKManager AvatarIKManager { get; private set; }
 
         public List<Transform> ColorANotes = new List<Transform>();
         public List<Transform> ColorBNotes = new List<Transform>();
@@ -129,6 +134,11 @@ namespace BeatSaberDMX
             {
                 // Spawn the Mikan camera and attach to the GameOrigin
                 MikanClient.Instance.SpawnMikanCamera(GameOrigin);
+
+                if (AvatarIKManager != null)
+                {
+                    PluginUtils.SetMaterialFloatValueRecursive(AvatarIKManager.gameObject, GlowShaderName, GlowPropertyName, 1.0f);
+                }
             }
         }
 
@@ -188,6 +198,11 @@ namespace BeatSaberDMX
 
                 // Spawn the Mikan camera and attach to the GameOrigin
                 MikanClient.Instance.SpawnMikanCamera(GameOrigin);
+
+                if (AvatarIKManager != null)
+                {
+                    PluginUtils.SetMaterialFloatValueRecursive(AvatarIKManager.gameObject, GlowShaderName, GlowPropertyName, 1.0f);
+                }
             }
         }
 
@@ -253,6 +268,11 @@ namespace BeatSaberDMX
 
         private void BeatmapObjectManager_noteWasSpawnedEvent(NoteController noteController)
         {
+            Plugin.Log?.Info("BeatSaberDMXController: Note Spawned");
+
+            //PluginUtils.PrintObjectMaterials(noteController.gameObject);
+            PluginUtils.SetMaterialFloatValueRecursive(noteController.gameObject, GlowShaderName, GlowPropertyName, 1.0f);
+
             if (noteController.noteData.colorType == ColorType.ColorA)
             {
                 ColorANotes.Add(noteController.noteTransform);
@@ -293,6 +313,12 @@ namespace BeatSaberDMX
 
             // Fetch the game saber manager to get the left and right sabers
             GameSaberManager = vrGameCore.GetComponent<SaberManager>();
+
+            AvatarIKManager = FindObjectOfType<VRIKManager>();
+            if (AvatarIKManager == null)
+            {
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find VRIKManager");
+            }
 
             return true;
         }
@@ -346,6 +372,12 @@ namespace BeatSaberDMX
             LeftVRController = controllerLeft.GetComponent<VRController>();
             RightVRController = controllerRight.GetComponent<VRController>();
 
+            AvatarIKManager = FindObjectOfType<VRIKManager>();
+            if (AvatarIKManager == null)
+            {
+                Plugin.Log?.Warn("BeatSaberDMXController: Failed to find VRIKManager");
+            }
+
             return true;
         }
 
@@ -355,6 +387,7 @@ namespace BeatSaberDMX
             GameOrigin = null;
             LeftVRController = null;
             RightVRController = null;
+            AvatarIKManager = null;
         }
 
         void SpawnDMXScene()
