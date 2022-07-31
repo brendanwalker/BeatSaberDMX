@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using System.IO;
 using BeatSaberDMX;
 using UnityEngine.SceneManagement;
+using BeatSaberDMX.Utilities;
 
 #if UNITY_2017_2_OR_NEWER
 using UnityEngine.XR;
@@ -66,7 +67,9 @@ namespace MikanXR.SDK.Unity
             }
         }
 
+        private GameObject _MRCameraOrigin = null;
         private Camera _MRCamera = null;
+        private BeatSaberUtilities _bsUtilities = null;
 
         private void Awake()
         {
@@ -152,11 +155,27 @@ namespace MikanXR.SDK.Unity
             }
         }
 
-        public void SpawnMikanCamera(Transform cameraOrigin)
+        public void SpawnMikanCamera(BeatSaberUtilities bsUtilities)
         {
             if (_MRCamera == null)
             {
                 Plugin.Log?.Info($"MikanClient: Spawning Mikan camera");
+
+                _MRCameraOrigin = new GameObject("MikanRoomOrigin");
+                if (bsUtilities != null)
+                {
+                    Plugin.Log?.Info($"MikanClient: Attaching to room origin");
+
+                    _MRCameraOrigin.transform.position = bsUtilities.roomCenter;
+                    _MRCameraOrigin.transform.rotation = bsUtilities.roomRotation;
+
+                    _bsUtilities = bsUtilities;
+                    _bsUtilities.roomAdjustChanged += OnRoomOriginChanged;
+                }
+                else
+                {
+                    Plugin.Log?.Info($"MikanClient: No room origin found");
+                }
 
                 GameObject cameraGameObject = new GameObject(
                     "MikanCamera",
@@ -166,12 +185,7 @@ namespace MikanXR.SDK.Unity
                 _MRCamera.backgroundColor = new Color(0, 0, 0, 0);
                 _MRCamera.clearFlags = CameraClearFlags.SolidColor;
                 _MRCamera.forceIntoRenderTexture = true;
-
-                if (cameraOrigin != null)
-                {
-                    _MRCamera.transform.parent = cameraOrigin;
-                    Plugin.Log?.Warn("MikanClient: Attaching Mikan camera origin to " + cameraOrigin.name);
-                }
+                _MRCamera.transform.parent = _MRCameraOrigin.transform;
 
                 if (_renderTexture != null)
                 {
@@ -192,6 +206,12 @@ namespace MikanXR.SDK.Unity
 
         public void DespawnMikanCamera()
         {
+            if (_bsUtilities != null)
+            {
+                _bsUtilities.roomAdjustChanged -= OnRoomOriginChanged;
+                _bsUtilities = null;
+            }
+
             if (_MRCamera != null)
             {
                 Plugin.Log?.Info($"MikanClient: Despawn Mikan camera");
@@ -201,6 +221,17 @@ namespace MikanXR.SDK.Unity
             else
             {
                 Plugin.Log?.Info($"MikanClient: Ignoring camera de-spawn request. Already despawned.");
+            }
+        }
+
+        public void OnRoomOriginChanged(Vector3 roomCenter, Quaternion roomRotation)
+        {
+            Plugin.Log?.Info($"MikanClient: Room Origin Changed");
+
+            if (_MRCameraOrigin != null)
+            {
+                _MRCameraOrigin.transform.position = roomCenter;
+                _MRCameraOrigin.transform.rotation = roomRotation;
             }
         }
 

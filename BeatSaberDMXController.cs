@@ -1,4 +1,5 @@
 ﻿using CustomAvatar;
+using BeatSaberDMX.Utilities;
 using MikanXR.SDK.Unity;
 using System;
 using System.Collections;
@@ -33,7 +34,6 @@ namespace BeatSaberDMX
 
         public static BeatSaberDMXController Instance { get; private set; }
         public SaberManager GameSaberManager { get; private set; }
-        public Transform GameOrigin { get; private set; }
         public VRController LeftVRController { get; private set; }
         public VRController RightVRController { get; private set; }
         public VRIKManager AvatarIKManager { get; private set; }
@@ -132,8 +132,8 @@ namespace BeatSaberDMX
 
             if (BindMenuSceneComponents())
             {
-                // Spawn the Mikan camera and attach to the GameOrigin
-                MikanClient.Instance.SpawnMikanCamera(GameOrigin);
+                BeatSaberUtilities bsUtilities = diContainer.Resolve<BeatSaberUtilities>();
+                MikanClient.Instance.SpawnMikanCamera(bsUtilities);
 
                 if (AvatarIKManager != null)
                 {
@@ -194,10 +194,10 @@ namespace BeatSaberDMX
 
             if (BindGameSceneComponents())
             {                
-                SpawnDMXScene();
+                BeatSaberUtilities bsUtilities = diContainer.Resolve<BeatSaberUtilities>();
 
-                // Spawn the Mikan camera and attach to the GameOrigin
-                MikanClient.Instance.SpawnMikanCamera(GameOrigin);
+                SpawnDMXScene(bsUtilities);
+                MikanClient.Instance.SpawnMikanCamera(bsUtilities);
 
                 if (AvatarIKManager != null)
                 {
@@ -288,6 +288,7 @@ namespace BeatSaberDMX
             Plugin.Log?.Info("BeatSaberDMXController: Binding Game Scene Components");
 
             GameObject localPlayerGameCore = GameObject.Find("LocalPlayerGameCore");
+            //PluginUtils.PrintObjectTree(localPlayerGameCore, "");
             //PluginUtils.PrintComponents(localPlayerGameCore);
             if (localPlayerGameCore == null)
             {
@@ -295,7 +296,7 @@ namespace BeatSaberDMX
                 return false;
             }
 
-            GameOrigin = localPlayerGameCore.transform.Find("Origin");
+            Transform GameOrigin = localPlayerGameCore.transform.Find("Origin");
             //PluginUtils.PrintComponents(GameOrigin?.gameObject);
             if (GameOrigin == null)
             {
@@ -304,7 +305,7 @@ namespace BeatSaberDMX
             }
 
             GameObject vrGameCore = GameOrigin?.Find("VRGameCore")?.gameObject;
-            //PluginUtils.PrintComponents(vrGameCoreTransform);
+            //PluginUtils.PrintComponents(vrGameCore);
             if (vrGameCore == null)
             {
                 Plugin.Log?.Warn("BeatSaberDMXController: Failed to find VRGameCore game object, bailing!");
@@ -337,7 +338,8 @@ namespace BeatSaberDMX
                 return false;
             }
 
-            GameOrigin = menuCore.transform.Find("Origin");
+            Transform GameOrigin = menuCore.transform.Find("Origin");
+            //PluginUtils.PrintObjectTree(GameOrigin?.gameObject, "");
             //PluginUtils.PrintComponents(GameOrigin?.gameObject);
             if (GameOrigin == null)
             {
@@ -346,7 +348,7 @@ namespace BeatSaberDMX
             }
 
             Transform menuControllers = GameOrigin?.Find("MenuControllers");
-            //PluginUtils.PrintComponents(menuControllers);
+            //PluginUtils.PrintComponents(menuControllers?.gameObject);
             if (menuControllers == null)
             {
                 Plugin.Log?.Warn("BeatSaberDMXController: Failed to find MenuControllers game object, bailing!");
@@ -354,7 +356,7 @@ namespace BeatSaberDMX
             }
 
             GameObject controllerLeft = menuControllers?.Find("ControllerLeft")?.gameObject;
-            //PluginUtils.PrintComponents(controllerLeft);
+            //PluginUtils.PrintComponents(controllerLeft?.gameObject);
             if (controllerLeft == null)
             {
                 Plugin.Log?.Warn("BeatSaberDMXController: Failed to find ControllerLeft game object, bailing!");
@@ -384,16 +386,22 @@ namespace BeatSaberDMX
         private void UnbindSceneComponents()
         {
             GameSaberManager = null;
-            GameOrigin = null;
             LeftVRController = null;
             RightVRController = null;
             AvatarIKManager = null;
         }
 
-        void SpawnDMXScene()
+        void SpawnDMXScene(BeatSaberUtilities bsUtilities)
         {
             Plugin.Log?.Info("BeatSaberDMXController: Loading DMX Scene");
-            DmxSceneManager.Instance.LoadDMXScene(GameOrigin);
+            if (bsUtilities != null)
+            {
+                DmxSceneManager.Instance.LoadDMXScene(bsUtilities);
+            }
+            else
+            {
+                DmxSceneManager.Instance.LoadDMXScene(null);
+            }
         }
 
         void DespawnDMXScene()

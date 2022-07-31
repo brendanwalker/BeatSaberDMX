@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using BeatSaberDMX;
 using BeatSaberDMX.Configuration;
+using BeatSaberDMX.Utilities;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -58,20 +59,30 @@ public class DMXSceneDefinition
 public class DmxSceneInstance
 {
     private bool _isVisible = true;
-    private Transform _gameOrigin = null;
+    private BeatSaberUtilities _bsUtilities = null;
+    private GameObject _roomOrigin = null;
     private GameObject _sceneOrigin = null;
     private Dictionary<string, DmxLayoutDefinition> _layoutDefinitions = new Dictionary<string, DmxLayoutDefinition>();
     private Dictionary<string, DmxLayoutInstance> _layoutInstances = new Dictionary<string, DmxLayoutInstance>();
 
-    public void Initialize(DMXSceneDefinition sceneDefinition, Transform gameOrigin)
+    public void Initialize(DMXSceneDefinition sceneDefinition, BeatSaberUtilities bsUtilities)
     {
-        _gameOrigin = gameOrigin;
+        _roomOrigin = new GameObject("DMXRoomOrigin");
+
+        if (bsUtilities != null)
+        {
+            _roomOrigin.transform.position = bsUtilities.roomCenter;
+            _roomOrigin.transform.rotation = bsUtilities.roomRotation;
+
+            _bsUtilities = bsUtilities;
+            _bsUtilities.roomAdjustChanged += OnRoomOriginChanged;
+        }
 
         RebuildLayoutDefinitions(sceneDefinition);
 
         // Create a scene root to attach all instances to
         _sceneOrigin = new GameObject("DmxSceneRoot");
-        _sceneOrigin.transform.parent = gameOrigin;
+        _sceneOrigin.transform.parent = _roomOrigin.transform;
         SetDMXTransform(sceneDefinition.SceneTransform);
 
         // Create an instance for each definition
@@ -123,6 +134,15 @@ public class DmxSceneInstance
         }
     }
 
+    public void OnRoomOriginChanged(Vector3 roomCenter, Quaternion roomRotation)
+    {
+        if (_roomOrigin != null)
+        {
+            _roomOrigin.transform.position = roomCenter;
+            _roomOrigin.transform.rotation = roomRotation;
+        }
+    }
+
     public void Patch(DMXSceneDefinition sceneDefinition)
     {
         RebuildLayoutDefinitions(sceneDefinition);
@@ -160,6 +180,12 @@ public class DmxSceneInstance
 
     public void Dispose()
     {
+        if (_bsUtilities != null)
+        {
+            _bsUtilities.roomAdjustChanged -= OnRoomOriginChanged;
+            _bsUtilities = null;
+        }
+
         foreach (DmxLanternLayoutInstance instance in _layoutInstances.Values)
         {
             Plugin.Log?.Info($"DmxSceneInstance: Despawned DMX instance {instance.gameObject}");

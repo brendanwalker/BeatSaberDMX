@@ -122,6 +122,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Logging\ILogger.cs" />
+    <Compile Include="Logging\IPALogger.cs" />
+    <Compile Include="Logging\UnityDebugLogger.cs" />
     <Compile Include="MikanXR\MikanAnchor.cs" />
     <Compile Include="MikanXR\MikanClient.cs" />
     <Compile Include="MikanXR\MikanClientAPI.cs" />
@@ -139,6 +142,14 @@
     <Compile Include="Unity-DMX\Device\DmxDeviceMath.cs" />
     <Compile Include="Unity-DMX\Layout\DmxLanternLayout.cs" />
     <Compile Include="Unity-DMX\Layout\DmxGridLayout.cs" />
+    <Compile Include="Utilities\BeatSaberUtilities.cs" />
+    <Compile Include="Utilities\TrackingHelper.cs" />
+    <Compile Include="Zenject\BeatSaberDMXInstaller.cs" />
+    <Compile Include="Zenject\Internal\InstallerRegistration.cs" />
+    <Compile Include="Zenject\Internal\InstallerRegistrationOnContext.cs" />
+    <Compile Include="Zenject\Internal\InstallerRegistrationOnMonoInstaller.cs" />
+    <Compile Include="Zenject\Internal\InstallerRegistrationOnTarget.cs" />
+    <Compile Include="Zenject\Internal\ZenjectHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="manifest.json" />

@@ -11,6 +11,9 @@ using IPA.Config.Stores;
 using UnityEngine;
 using IPALogger = IPA.Logging.Logger;
 using MikanXR.SDK.Unity;
+using BeatSaberDMX.Logging;
+using BeatSaberDMX.Zenject.Internal;
+using BeatSaberDMX.Zenject;
 
 namespace BeatSaberDMX
 {
@@ -40,13 +43,20 @@ namespace BeatSaberDMX
         /// [Init] methods that use a Constructor or called before regular methods like InitWithConfig.
         /// Only use [Init] with one Constructor.
         /// </summary>
-        public Plugin(IPALogger logger)
+        public Plugin(IPALogger ipaLogger)
         {
             Instance = this;
-            Plugin.Log = logger;
+            Plugin.Log = ipaLogger;
             Plugin.Log?.Debug("Logger initialized.");
 
             HarmonyInstance = new Harmony(HarmonyId);
+
+            // can't inject at this point so just create it
+            ILogger<Plugin> logger = new IPALogger<Plugin>(ipaLogger);
+
+            ZenjectHelper.Init(ipaLogger);
+            ZenjectHelper.BindSceneComponent<PCAppInit>();
+            ZenjectHelper.Register<BeatSaberDMXInstaller>().WithArguments(ipaLogger).OnMonoInstaller<PCAppInit>();
         }
 
         #region BSIPA Config

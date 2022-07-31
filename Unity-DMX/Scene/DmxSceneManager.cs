@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using BeatSaberDMX;
 using BeatSaberDMX.Configuration;
+using BeatSaberDMX.Utilities;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -17,6 +18,14 @@ public class DmxSceneManager : MonoBehaviour
         get
         {
             return _instance;
+        }
+    }
+
+    public DmxSceneInstance SceneInstance
+    {
+        get
+        {
+            return _sceneInstance;
         }
     }
 
@@ -117,7 +126,7 @@ public class DmxSceneManager : MonoBehaviour
         }
     }
 
-    public void LoadDMXScene(Transform gameOrigin)
+    public void LoadDMXScene(BeatSaberUtilities bsUtilities)
     {
         UnloadDMXScene();
 
@@ -126,7 +135,7 @@ public class DmxSceneManager : MonoBehaviour
         if (sceneDefinition != null)
         {
             _sceneInstance = new DmxSceneInstance();
-            _sceneInstance.Initialize(sceneDefinition, gameOrigin);
+            _sceneInstance.Initialize(sceneDefinition, bsUtilities);
         }
     }
 }
