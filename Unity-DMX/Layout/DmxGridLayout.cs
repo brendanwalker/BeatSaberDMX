@@ -193,19 +193,25 @@ public class DmxGridLayoutInstance : DmxLayoutInstance
 
         foreach (Transform NoteTransform in BeatSaberDMXController.Instance.ColorANotes)
         {
-            ProcessNoteProjection(NoteTransform, NoteSize, ColorA);
+            if (NoteTransform != null)
+            {
+                ProcessNoteProjection(NoteTransform, NoteSize, ColorA);
+            }
         }
 
         foreach (Transform NoteTransform in BeatSaberDMXController.Instance.ColorBNotes)
         {
-            ProcessNoteProjection(NoteTransform, NoteSize, ColorB);
+            if (NoteTransform != null)
+            {
+                ProcessNoteProjection(NoteTransform, NoteSize, ColorB);
+            }
         }
     }
 
     private void Update()
     {
         // Project the current active set of notes to the pixel grid
-        ProjectNotes();
+        //ProjectNotes();
 
         //Plugin.Log?.Error($"Pixel Grid update");
         float decayParam = Mathf.Clamp01(PluginConfig.Instance.SaberPaintDecayRate * Time.deltaTime);

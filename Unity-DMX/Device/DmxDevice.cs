@@ -212,17 +212,30 @@ public class DmxDeviceInstance : MonoBehaviour
     {
         if (sacnSender != null)
         {
-            var packet = packetFactory.CreateDataPacket(universe, dmxData);
+            DataPacket packet = null;
 
-            if (useBroadcast)
+            try
             {
-                await ((MulticastSacnSenderIPV4)sacnSender).Send(packet);
+                packet = packetFactory.CreateDataPacket(universe, dmxData);
+
+                if (useBroadcast)
+                {
+                    await ((MulticastSacnSenderIPV4)sacnSender).Send(packet);
+                }
+                else
+                {
+                    //string data = BitConverter.ToString(dmxData).Replace("-", "");
+                    //Debug.Log(string.Format("u:{0}, d:{1}", universe, data));
+                    await ((UnicastSacnSender)sacnSender).Send(packet);
+                }
             }
-            else
+            catch(Exception e)
             {
-                //string data = BitConverter.ToString(dmxData).Replace("-", "");
-                //Debug.Log(string.Format("u:{0}, d:{1}", universe, data));
-                await ((UnicastSacnSender)sacnSender).Send(packet);
+                int packageLength = packet != null ? packet.Length : -1;
+                int dmxLength = dmxData != null ? dmxData.Length : -1;
+
+                Plugin.Log?.Error($"DmxDeviceInstance: Failed to send packet: {e.Message}");
+                Plugin.Log?.Error($"DmxDeviceInstance: dmx data length: {dmxLength} packet length: {packageLength}");
             }
         }
     }

@@ -51,8 +51,8 @@ namespace BeatSaberDMX
 
                 if (oldScene.name == GameSceneName || oldScene.name == MenuSceneName)
                 {
-                    MikanClient.Instance.DespawnMikanCamera();
-                    DespawnDMXScene();
+                    //MikanClient.Instance.DespawnMikanCamera();
+                    //DespawnDMXScene();
                     UnbindSceneComponents();
                 }
 
@@ -133,6 +133,8 @@ namespace BeatSaberDMX
             if (BindMenuSceneComponents())
             {
                 BeatSaberUtilities bsUtilities = diContainer.Resolve<BeatSaberUtilities>();
+
+                //SpawnDMXScene(bsUtilities);
                 MikanClient.Instance.SpawnMikanCamera(bsUtilities);
 
                 if (AvatarIKManager != null)
@@ -194,10 +196,10 @@ namespace BeatSaberDMX
 
             if (BindGameSceneComponents())
             {                
-                BeatSaberUtilities bsUtilities = diContainer.Resolve<BeatSaberUtilities>();
+                //BeatSaberUtilities bsUtilities = diContainer.Resolve<BeatSaberUtilities>();
 
-                SpawnDMXScene(bsUtilities);
-                MikanClient.Instance.SpawnMikanCamera(bsUtilities);
+                //SpawnDMXScene(bsUtilities);
+                //MikanClient.Instance.SpawnMikanCamera(bsUtilities);
 
                 if (AvatarIKManager != null)
                 {
@@ -389,18 +391,27 @@ namespace BeatSaberDMX
             LeftVRController = null;
             RightVRController = null;
             AvatarIKManager = null;
+            ColorANotes.Clear();
+            ColorBNotes.Clear();
         }
 
         void SpawnDMXScene(BeatSaberUtilities bsUtilities)
         {
-            Plugin.Log?.Info("BeatSaberDMXController: Loading DMX Scene");
-            if (bsUtilities != null)
+            if (DmxSceneManager.Instance.SceneInstance == null)
             {
-                DmxSceneManager.Instance.LoadDMXScene(bsUtilities);
+                Plugin.Log?.Info("BeatSaberDMXController: Loading DMX Scene");
+                if (bsUtilities != null)
+                {
+                    DmxSceneManager.Instance.LoadDMXScene(bsUtilities);
+                }
+                else
+                {
+                    DmxSceneManager.Instance.LoadDMXScene(null);
+                }
             }
             else
             {
-                DmxSceneManager.Instance.LoadDMXScene(null);
+                Plugin.Log?.Info("BeatSaberDMXController: Ignoring Spawn DMX Scene request. Already spawned");
             }
         }
 

@@ -189,7 +189,10 @@ public class DmxSceneInstance
         foreach (DmxLanternLayoutInstance instance in _layoutInstances.Values)
         {
             Plugin.Log?.Info($"DmxSceneInstance: Despawned DMX instance {instance.gameObject}");
-            GameObject.Destroy(instance.gameObject);
+            if (instance.gameObject != null)
+            {
+                GameObject.Destroy(instance.gameObject);
+            }
         }
         _layoutInstances.Clear();
         _layoutDefinitions.Clear();
