@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Zenject;
+using BeatSaberDMX.Configuration;
 
 namespace BeatSaberDMX
 {
@@ -37,6 +38,7 @@ namespace BeatSaberDMX
         public VRController LeftVRController { get; private set; }
         public VRController RightVRController { get; private set; }
         public VRIKManager AvatarIKManager { get; private set; }
+        public TrackingHelper RoomTrackingUtils { get; private set; }
 
         public List<Transform> ColorANotes = new List<Transform>();
         public List<Transform> ColorBNotes = new List<Transform>();
@@ -146,6 +148,8 @@ namespace BeatSaberDMX
 
         private void GameSceneLoadedCallback(ScenesTransitionSetupDataSO transitionSetupData, DiContainer diContainer)
         {
+            RoomTrackingUtils = diContainer.Resolve<TrackingHelper>();
+
             // Prevent firing this event when returning to menu
             var gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
             gameScenesManager.transitionDidFinishEvent -= GameSceneLoadedCallback;
@@ -273,7 +277,7 @@ namespace BeatSaberDMX
             Plugin.Log?.Info("BeatSaberDMXController: Note Spawned");
 
             //PluginUtils.PrintObjectMaterials(noteController.gameObject);
-            PluginUtils.SetMaterialFloatValueRecursive(noteController.gameObject, GlowShaderName, GlowPropertyName, 1.0f);
+            PluginUtils.SetMaterialFloatValueRecursive(noteController.gameObject, GlowShaderName, GlowPropertyName, 0.0f);
 
             if (noteController.noteData.colorType == ColorType.ColorA)
             {
@@ -282,6 +286,42 @@ namespace BeatSaberDMX
             else if (noteController.noteData.colorType == ColorType.ColorB)
             {
                 ColorBNotes.Add(noteController.noteTransform);
+            }
+        }
+
+        private void UpdateNotes()
+        {
+            float nearAlphaDist = PluginConfig.Instance.NoteNearAlphaDist;
+            float farAlphaDist = PluginConfig.Instance.NoteFarAlphaDist;
+
+            foreach (Transform noteTransform in ColorANotes)
+            {
+                if (noteTransform != null)
+                {
+                    UpdateNoteAlpha(noteTransform, nearAlphaDist, farAlphaDist);
+                }
+            }
+
+            foreach (Transform noteTransform in ColorBNotes)
+            {
+                if (noteTransform != null)
+                {
+                    UpdateNoteAlpha(noteTransform, nearAlphaDist, farAlphaDist);
+                }
+            }
+        }
+
+        private void UpdateNoteAlpha(Transform noteTransform, float nearAlphaDist, float farAlphaDist)
+        {
+            Vector3 notePosition = noteTransform.position;
+            Quaternion noteOrientation = noteTransform.rotation;
+            RoomTrackingUtils.ApplyInverseRoomAdjust(ref notePosition, ref noteOrientation);
+
+            if (notePosition.z >= nearAlphaDist && notePosition.z <= farAlphaDist)
+            {
+                float newAlpha = Mathf.Clamp01((farAlphaDist - notePosition.z) / (farAlphaDist - nearAlphaDist));
+
+                PluginUtils.SetMaterialFloatValueRecursive(noteTransform.gameObject, GlowShaderName, GlowPropertyName, newAlpha);
             }
         }
 
@@ -485,6 +525,10 @@ namespace BeatSaberDMX
         /// </summary>
         private void Update()
         {
+            if (GameSaberManager != null)
+            {
+                UpdateNotes();
+            }
         }
 
         /// <summary>

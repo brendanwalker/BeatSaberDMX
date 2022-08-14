@@ -12,6 +12,8 @@ namespace BeatSaberDMX.Configuration
         public virtual float SaberPaintRadius { get; set; } = 0.05f;
         public virtual float SaberPaintDecayRate { get; set; } = 2.0f;
         public virtual float NotePaintSize { get; set; } = 0.1f;
+        public virtual float NoteNearAlphaDist { get; set; } = 2.7f;
+        public virtual float NoteFarAlphaDist { get; set; } = 3.0f;
         public virtual string DMXSceneFilePath { get; set; } = "";
 
         /// <summary>

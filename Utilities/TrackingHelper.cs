@@ -18,7 +18,7 @@ using UnityEngine;
 
 namespace BeatSaberDMX.Utilities
 {
-    internal class TrackingHelper
+    public class TrackingHelper
     {
         private readonly BeatSaberUtilities _beatSaberUtilities;
 
