@@ -317,7 +317,7 @@ namespace BeatSaberDMX
             Quaternion noteOrientation = noteTransform.rotation;
             RoomTrackingUtils.ApplyInverseRoomAdjust(ref notePosition, ref noteOrientation);
 
-            if (notePosition.z >= nearAlphaDist && notePosition.z <= farAlphaDist)
+            if (notePosition.z <= farAlphaDist)
             {
                 float newAlpha = Mathf.Clamp01((farAlphaDist - notePosition.z) / (farAlphaDist - nearAlphaDist));
 
