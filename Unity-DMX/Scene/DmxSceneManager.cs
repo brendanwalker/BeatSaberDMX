@@ -11,21 +11,24 @@ public class DmxSceneManager : MonoBehaviour
 {
     private static DmxSceneManager _instance = null;
     private DmxSceneInstance _sceneInstance = null;
+    public DmxSceneInstance SceneInstance { 
+        get { return _sceneInstance; } 
+    }
     private bool _hasSceneFileChanged = false;
+
+    public GameObject VRPlayerRig = null;
+    public Transform VRHeadTransform = null;
+    public Transform VRLeftHandTransform = null;
+    public Transform VRRightHandTransform = null;
+    public Transform VRLeftFootTransform = null;
+    public Transform VRRightFootTransform = null;
+    public Transform VRWaistTransform = null;
 
     public static DmxSceneManager Instance
     {
         get
         {
             return _instance;
-        }
-    }
-
-    public DmxSceneInstance SceneInstance
-    {
-        get
-        {
-            return _sceneInstance;
         }
     }
 

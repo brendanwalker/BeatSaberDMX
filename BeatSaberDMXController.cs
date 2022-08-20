@@ -487,6 +487,16 @@ namespace BeatSaberDMX
                 }
             }
 
+            VRController controller = overlappingGameObject.GetComponent<VRController>();
+            if (controller)
+            {
+                segmentColor = (LeftVRController == controller) ? ColorA : ColorB;
+                segmentStart = controller.position;
+                segmentEnd = controller.position + controller.forward*10.0f;
+
+                return true;
+            }
+
             return false;
         }
 
@@ -528,6 +538,20 @@ namespace BeatSaberDMX
             if (GameSaberManager != null)
             {
                 UpdateNotes();
+            }
+
+            if (DmxSceneManager.Instance != null &&
+                DmxSceneManager.Instance.SceneInstance != null)
+            {
+                if (LeftVRController != null)
+                {
+                    DmxSceneManager.Instance.SceneInstance.ProcessDmxLayoutSegmentOverlap(LeftVRController.gameObject);
+                }
+
+                if (RightVRController != null)
+                {
+                    DmxSceneManager.Instance.SceneInstance.ProcessDmxLayoutSegmentOverlap(RightVRController.gameObject);
+                }
             }
         }
 

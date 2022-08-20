@@ -310,23 +310,23 @@ public class DmxLanternLayoutInstance : DmxLayoutInstance
         return true;
     }
 
-    void OnDrawGizmos()
-    {
-#if UNITY_EDITOR
-    UnityEditor.Handles.BeginGUI();
+//    void OnDrawGizmos()
+//    {
+//#if UNITY_EDITOR
+//    UnityEditor.Handles.BeginGUI();
 
-    var restoreColor = GUI.color;
-    GUI.color = Color.white;
+//    var restoreColor = GUI.color;
+//    GUI.color = Color.white;
 
-    for (int vertIndex = 0; vertIndex < runtimeMeshData.vertexCount; ++vertIndex)
-    {
-      Vector3 ledLocation = gameObject.transform.TransformPoint(runtimeMeshData.vertices[vertIndex]);
-      int ledIndex = vertexToLEDIndexTable[vertIndex];
+//    for (int vertIndex = 0; vertIndex < runtimeMeshData.vertexCount; ++vertIndex)
+//    {
+//      Vector3 ledLocation = gameObject.transform.TransformPoint(runtimeMeshData.vertices[vertIndex]);
+//      int ledIndex = vertexToLEDIndexTable[vertIndex];
 
-      UnityEditor.Handles.Label(ledLocation, ledIndex.ToString());
-    }
-    GUI.color = restoreColor;
-    UnityEditor.Handles.EndGUI();
-#endif
-    }
+//      UnityEditor.Handles.Label(ledLocation, ledIndex.ToString());
+//    }
+//    GUI.color = restoreColor;
+//    UnityEditor.Handles.EndGUI();
+//#endif
+//    }
 }

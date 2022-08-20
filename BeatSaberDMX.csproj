@@ -92,6 +92,10 @@
       <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\tools\BeatSaber\BSLegacyLauncher\Beat Saber\Beat Saber_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
@@ -137,6 +141,7 @@
     <Compile Include="Unity-DMX\Device\DmxDevice.cs" />
     <Compile Include="Unity-DMX\Device\DmxUniverse.cs" />
     <Compile Include="Unity-DMX\Layout\DmxLayout.cs" />
+    <Compile Include="Unity-DMX\Scene\DmxAvatar.cs" />
     <Compile Include="Unity-DMX\Scene\DmxScene.cs" />
     <Compile Include="Unity-DMX\Scene\DmxSceneManager.cs" />
     <Compile Include="Unity-DMX\Device\DmxDeviceMath.cs" />
