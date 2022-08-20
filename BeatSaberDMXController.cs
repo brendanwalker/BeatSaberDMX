@@ -136,13 +136,13 @@ namespace BeatSaberDMX
             {
                 BeatSaberUtilities bsUtilities = diContainer.Resolve<BeatSaberUtilities>();
 
-                //SpawnDMXScene(bsUtilities);
+                SpawnDMXScene(bsUtilities);
                 MikanClient.Instance.SpawnMikanCamera(bsUtilities);
 
-                if (AvatarIKManager != null)
-                {
-                    PluginUtils.SetMaterialFloatValueRecursive(AvatarIKManager.gameObject, GlowShaderName, GlowPropertyName, 1.0f);
-                }
+                //if (AvatarIKManager != null)
+                //{
+                //    PluginUtils.SetMaterialFloatValueRecursive(AvatarIKManager.gameObject, GlowShaderName, GlowPropertyName, 1.0f);
+                //}
             }
         }
 
@@ -205,10 +205,10 @@ namespace BeatSaberDMX
                 //SpawnDMXScene(bsUtilities);
                 //MikanClient.Instance.SpawnMikanCamera(bsUtilities);
 
-                if (AvatarIKManager != null)
-                {
-                    PluginUtils.SetMaterialFloatValueRecursive(AvatarIKManager.gameObject, GlowShaderName, GlowPropertyName, 1.0f);
-                }
+                //if (AvatarIKManager != null)
+                //{
+                //    PluginUtils.SetMaterialFloatValueRecursive(AvatarIKManager.gameObject, GlowShaderName, GlowPropertyName, 1.0f);
+                //}
             }
         }
 
